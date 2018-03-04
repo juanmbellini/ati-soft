@@ -3,4 +3,4 @@ spring:
         banner-mode: "off"
 
 javafx:
-    title: Hello, World!
+    title: ATISoft

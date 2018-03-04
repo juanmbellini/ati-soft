@@ -24,7 +24,7 @@
         <de.roskenet.springboot-javafx.version>1.4.5</de.roskenet.springboot-javafx.version>
 
         <!-- Execution properties -->
-        <bootstrapClass>ar.edu.itba.ati.ati_soft.Main</bootstrapClass>
+        <bootstrapClass>ar.edu.itba.ati.ati_soft.AtiApplication</bootstrapClass>
     </properties>
 
     <dependencyManagement>

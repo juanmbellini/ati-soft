@@ -4,10 +4,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
             prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="ar.edu.itba.ati.ati_soft.controller.HelloWorldController">
-    <center>
-        <Label text="Hello, world!" BorderPane.alignment="CENTER"/>
-    </center>
+            fx:controller="ar.edu.itba.ati.ati_soft.controller.HomeController">
     <top>
         <MenuBar BorderPane.alignment="CENTER">
             <menus>
@@ -36,4 +33,8 @@
             </menus>
         </MenuBar>
     </top>
+
+    <center>
+        <Label text="ATI Software" BorderPane.alignment="CENTER"/>
+    </center>
 </BorderPane>

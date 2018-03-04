@@ -1,22 +1,22 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
-import ar.edu.itba.ati.ati_soft.interfaces.HelloWorldService;
+import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
 import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * Controller class for the Hello World GUI.
+ * Controller class for the main view.
  */
 @FXMLController
-public class HelloWorldController {
+public class HomeController {
 
-    private final HelloWorldService helloWorldService;
+    private final ImageFileService imageFileService;
 
     @Autowired
-    public HelloWorldController(HelloWorldService helloWorldService) {
-        this.helloWorldService = helloWorldService;
+    public HomeController(ImageFileService imageFileService) {
+        this.imageFileService = imageFileService;
     }
 
     @FXML

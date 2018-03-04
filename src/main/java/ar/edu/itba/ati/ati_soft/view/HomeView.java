@@ -4,8 +4,8 @@ import de.felixroske.jfxsupport.AbstractFxmlView;
 import de.felixroske.jfxsupport.FXMLView;
 
 /**
- * Mocked view class.
+ * Main view class.
  */
-@FXMLView("/fxml/HelloWorld.fxml")
-public class HelloWorldView extends AbstractFxmlView {
+@FXMLView("/fxml/Home.fxml")
+public class HomeView extends AbstractFxmlView {
 }
