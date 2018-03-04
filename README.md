@@ -1,4 +1,4 @@
-# ATI-Soft
+# ATI-Soft [![Build Status](https://travis-ci.org/juanmbellini/ati-soft.svg?branch=master)](https://travis-ci.org/juanmbellini/ati-soft)
 
 Images analysis and treatment course project
 
