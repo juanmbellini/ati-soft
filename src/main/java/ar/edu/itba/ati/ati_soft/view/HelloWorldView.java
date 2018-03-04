@@ -1,4 +1,4 @@
-package ar.edu.itba.ati.ati_soft;
+package ar.edu.itba.ati.ati_soft.view;
 
 import de.felixroske.jfxsupport.AbstractFxmlView;
 import de.felixroske.jfxsupport.FXMLView;

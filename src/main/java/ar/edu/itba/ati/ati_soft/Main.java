@@ -1,5 +1,6 @@
 package ar.edu.itba.ati.ati_soft;
 
+import ar.edu.itba.ati.ati_soft.view.HelloWorldView;
 import de.felixroske.jfxsupport.AbstractJavaFxApplicationSupport;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
