@@ -4,9 +4,9 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
-            prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="ar.edu.itba.ati.ati_soft.controller.HomeController">
+<BorderPane fx:id="root" maxHeight="-Infinity" fx:controller="ar.edu.itba.ati.ati_soft.controller.HomeController"
+            maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
+            prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar BorderPane.alignment="CENTER">
             <menus>
@@ -48,7 +48,8 @@
                         </Label>
                     </top>
                     <center>
-                        <ImageView fitHeight="200.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="true"
+                        <ImageView fx:id="beforeImageView"
+                                   fitHeight="200.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="true"
                                    BorderPane.alignment="TOP_CENTER">
                             <BorderPane.margin>
                                 <Insets top="20.0"/>
@@ -65,7 +66,8 @@
                         </Label>
                     </top>
                     <center>
-                        <ImageView fitHeight="200.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="true"
+                        <ImageView fx:id="afterImageView"
+                                   fitHeight="200.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="true"
                                    BorderPane.alignment="TOP_CENTER">
                             <BorderPane.margin>
                                 <Insets top="20.0"/>
