@@ -2,6 +2,7 @@ package ar.edu.itba.ati.ati_soft.controller;
 
 import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
 import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
+import ar.edu.itba.ati.ati_soft.models.Image;
 import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -76,6 +77,7 @@ public class HomeController {
         LOGGER.debug("Opening image...");
         Optional.ofNullable(selectFile())
                 .map(this::openImage)
+                .map(Image::getContent)
                 .ifPresent(image -> {
                     drawImage(image, beforeImageView);
                     drawImage(image, afterImageView);
@@ -89,7 +91,7 @@ public class HomeController {
      * @return a {@link BufferedImage} instance containing the image data,
      * or {@code null} in case the image could not be opened.
      */
-    private BufferedImage openImage(File imageFile) {
+    private Image openImage(File imageFile) {
         try {
             return imageFileService.openImage(imageFile);
         } catch (UnsupportedImageFileException e) {

@@ -1,5 +1,7 @@
 package ar.edu.itba.ati.ati_soft.interfaces;
 
+import ar.edu.itba.ati.ati_soft.models.Image;
+
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -18,7 +20,7 @@ public interface ImageFileService {
      * @throws UnsupportedImageFileException In case the file with the given {@code fileName}
      *                                       is not a supported image file (or is not an image at all).
      */
-    default BufferedImage openImage(String fileName) throws IOException, UnsupportedImageFileException {
+    default Image openImage(String fileName) throws IOException, UnsupportedImageFileException {
         return openImage(new File(fileName));
     }
 
@@ -31,7 +33,7 @@ public interface ImageFileService {
      * @throws UnsupportedImageFileException In case the file with the given {@code fileName}
      *                                       is not a supported image file (or is not an image at all).
      */
-    BufferedImage openImage(File imageFile) throws IOException, UnsupportedImageFileException;
+    Image openImage(File imageFile) throws IOException, UnsupportedImageFileException;
 
     void saveImage(String fileName);
 }
