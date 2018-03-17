@@ -76,7 +76,10 @@ public class HomeController {
         LOGGER.debug("Opening image...");
         Optional.ofNullable(selectFile())
                 .map(this::openImage)
-                .ifPresent(image -> drawImage(image, beforeImageView));
+                .ifPresent(image -> {
+                    drawImage(image, beforeImageView);
+                    drawImage(image, afterImageView);
+                });
     }
 
     /**
