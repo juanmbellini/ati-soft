@@ -7,6 +7,7 @@ import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
@@ -18,7 +19,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Controller class for the main view.
@@ -31,10 +34,19 @@ public class HomeController {
      */
     private static final Logger LOGGER = LoggerFactory.getLogger(HomeController.class);
 
+    // ==============================================================================
+    // Services
+    // ==============================================================================
+
     /**
      * An {@link ImageFileService} to manipulate image files.
      */
     private final ImageFileService imageFileService;
+
+
+    // ==============================================================================
+    // UI Components
+    // ==============================================================================
 
     /**
      * The root {@link Node},
@@ -42,6 +54,18 @@ public class HomeController {
      */
     @FXML
     private Node root;
+
+    /**
+     * The {@link MenuItem} for the "save" operation.
+     */
+    @FXML
+    private MenuItem saveMenuItem;
+
+    /**
+     * The {@link MenuItem} for the "save as..." operation.
+     */
+    @FXML
+    private MenuItem saveAsMenuItem;
 
     /**
      * The {@link ImageView} that will show an image without any changes.
@@ -55,10 +79,79 @@ public class HomeController {
     @FXML
     private ImageView afterImageView;
 
+    // ==============================================================================
+    // Event handling
+    // ==============================================================================
+
+
+    // ==============================================================================
+    // Fields
+    // ==============================================================================
+
+    /**
+     * The {@link File} from where the image was opened.
+     */
+    private File openedImageFile;
+
+    /**
+     * The actual image being displayed.
+     */
+    private Image actualImage;
+//
+//    /**
+//     * The initial {@link Image}
+//     */
+//    private Image initialImage;
+
+    /**
+     * The last saved {@link Image}.
+     */
+    private Image lastSaved;
+//
+//    /**
+//     * A {@link Stack} holding {@link Image}s obtained.
+//     */
+//    private final Stack<Image> imageHistory;
+//
+//    /**
+//     * {@link Stack} holding each undone image (i.e those taken from the {@link #imageHistory} stack).
+//     */
+//    private final Stack<Image> undoneImages;
+
+
+    // ==============================================================================
+    // Constructor & Initialization
+    // ==============================================================================
+
     @Autowired
     public HomeController(ImageFileService imageFileService) {
         this.imageFileService = imageFileService;
     }
+
+    @FXML
+    private void initialize() {
+//        final BooleanBinding notOpenedBinding = new BooleanBinding() {
+//            @Override
+//            protected boolean computeValue() {
+//                return actualImage == null;
+//            }
+//        };
+//        final BooleanBinding notModifiedBinding = new BooleanBinding() {
+//            @Override
+//            protected boolean computeValue() {
+//                return actualImage == lastSaved;
+//            }
+//        };
+//        this.saveMenuItem.disableProperty().bind(Bindings.or(notOpenedBinding, notModifiedBinding));
+//        this.saveAsMenuItem.disableProperty().bind(notOpenedBinding);
+
+        LOGGER.debug("Home controller initialized");
+    }
+
+
+    // ==============================================================================
+    // Behaviour methods
+    // ==============================================================================
 
     /**
      * Closes the application.
@@ -84,6 +177,35 @@ public class HomeController {
                 });
     }
 
+    @FXML
+    public void saveImage() {
+        LOGGER.debug("Saving image...");
+        validateSave();
+        if (actualImage == lastSaved) {
+            LOGGER.warn("No changes has been made to image.");
+        }
+        saveImage(openedImageFile);
+    }
+
+    @FXML
+    public void saveImageAs() {
+        LOGGER.debug("Saving image as...");
+        validateSave();
+        final FileChooser fileChooser = new FileChooser();
+        final File initialDirectory = Optional.ofNullable(openedImageFile.getParentFile())
+                .orElse(new File(System.getProperty("user.home")));
+        fileChooser.setTitle("Save as...");
+        fileChooser.setInitialDirectory(initialDirectory);
+        fileChooser.setInitialFileName(openedImageFile.getName());
+        final File newFile = fileChooser.showSaveDialog(root.getScene().getWindow());
+        saveImage(newFile);
+    }
+
+
+    // ==============================================================================
+    // Helper methods
+    // ==============================================================================
+
     /**
      * Opens the given {@code imageFile}.
      *
@@ -93,13 +215,53 @@ public class HomeController {
      */
     private Image openImage(File imageFile) {
         try {
-            return imageFileService.openImage(imageFile);
+            final Image image = imageFileService.openImage(imageFile);
+            afterOpeningImage(image, imageFile);
+            return image;
         } catch (UnsupportedImageFileException e) {
             LOGGER.debug("File is not an image");
             return null;
         } catch (IOException e) {
             LOGGER.debug("Could not open image");
             return null;
+        }
+    }
+
+    /**
+     * Performs the operations that must be done after an image is opened.
+     *
+     * @param image The opened {@link Image}.
+     * @param file  The {@link File} from where the image was opened.
+     */
+    private void afterOpeningImage(Image image, File file) {
+        this.actualImage = image;
+        this.lastSaved = image;
+        this.openedImageFile = file;
+    }
+
+    /**
+     * Validates that the save operation can be performed.
+     *
+     * @throws IllegalStateException If the state of the system does not allow to perform a save operation.
+     */
+    private void validateSave() throws IllegalStateException {
+        if (this.actualImage == null) {
+            throw new IllegalStateException("No opened image.");
+        }
+    }
+
+    /**
+     * Performs the save operation, using the given {@link File}.
+     *
+     * @param file {@link File} where the {@link #actualImage} will be saved.
+     */
+    private void saveImage(File file) {
+        try {
+            imageFileService.saveImage(actualImage, file);
+        } catch (UnsupportedImageFileException e) {
+            LOGGER.debug("Something wrong had happened.");
+        } catch (IOException e) {
+            LOGGER.debug("Could not save image.");
         }
     }
 
@@ -126,22 +288,21 @@ public class HomeController {
      * @return The selected {@link File}.
      */
     private File selectFile() {
-        FileChooser fileChooser = new FileChooser();
+        final FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select image");
-        configureImageFileChooser(fileChooser);
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+        final List<FileChooser.ExtensionFilter> extensionFilters = imageFileService.getSupportedFormats().entrySet()
+                .stream()
+                .map(e -> new FileChooser.ExtensionFilter(e.getValue() + " (." + e.getKey() + ")", "*." + e.getKey()))
+                .collect(Collectors.toList());
+        fileChooser.getExtensionFilters().addAll(extensionFilters);
         return fileChooser.showOpenDialog(root.getScene().getWindow());
     }
 
-    /**
-     * Performs basic configuration of the given {@link FileChooser}, in order to be used to select images.
-     *
-     * @param fileChooser The {@link FileChooser} to be configured.
-     */
-    private static void configureImageFileChooser(FileChooser fileChooser) {
-        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Portable pixmap (.ppm)", "*.ppm"),
-                new FileChooser.ExtensionFilter("Portable graymap (.pgm)", "*.pgm")
-        );
-    }
+
+    // ==============================================================================
+    // Helper classes
+    // ==============================================================================
+
+    // ...
 }

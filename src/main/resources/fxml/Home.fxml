@@ -13,9 +13,12 @@
                 <Menu mnemonicParsing="false" text="File">
                     <items>
                         <MenuItem mnemonicParsing="false" text="New"/>
+                        <SeparatorMenuItem/>
                         <MenuItem mnemonicParsing="false" text="Open" onAction="#openImage"/>
-                        <MenuItem mnemonicParsing="false" text="Save"/>
-                        <MenuItem mnemonicParsing="false" text="Save As..."/>
+                        <MenuItem fx:id="saveMenuItem"
+                                  mnemonicParsing="false" text="Save" onAction="#saveImage"/>
+                        <MenuItem fx:id="saveAsMenuItem"
+                                  mnemonicParsing="false" text="Save As..." onAction="#saveImageAs"/>
                         <SeparatorMenuItem/>
                         <MenuItem mnemonicParsing="false" onAction="#closeApplication" text="Close"/>
                     </items>

@@ -23,6 +23,7 @@
         <org.springframework.boot.version>1.5.10.RELEASE</org.springframework.boot.version>
         <de.roskenet.springboot-javafx.version>1.4.5</de.roskenet.springboot-javafx.version>
         <com.github.jai-imageio.jai-imageio-core.version>1.3.0</com.github.jai-imageio.jai-imageio-core.version>
+        <commons-io.version>2.6</commons-io.version>
 
         <!-- Execution properties -->
         <bootstrapClass>ar.edu.itba.ati.ati_soft.AtiApplication</bootstrapClass>
@@ -38,19 +39,23 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
             <!-- Spring and JavaFX support -->
             <dependency>
                 <groupId>de.roskenet</groupId>
                 <artifactId>springboot-javafx-support</artifactId>
                 <version>${de.roskenet.springboot-javafx.version}</version>
             </dependency>
-
             <!-- Standalone Java Advanced Imaging Tool API Core -->
             <dependency>
                 <groupId>com.github.jai-imageio</groupId>
                 <artifactId>jai-imageio-core</artifactId>
                 <version>${com.github.jai-imageio.jai-imageio-core.version}</version>
+            </dependency>
+            <!-- Commons IO to perform IO operations easier -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -64,10 +69,13 @@
             <groupId>de.roskenet</groupId>
             <artifactId>springboot-javafx-support</artifactId>
         </dependency>
-
         <dependency>
             <groupId>com.github.jai-imageio</groupId>
             <artifactId>jai-imageio-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
         </dependency>
     </dependencies>
 
@@ -84,14 +92,12 @@
                         <target>1.8</target>
                     </configuration>
                 </plugin>
-
                 <!-- Maven versions plugin -->
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
                     <version>${versions-maven-plugin.version}</version>
                 </plugin>
-
                 <!-- Spring Boot Plugin -->
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
