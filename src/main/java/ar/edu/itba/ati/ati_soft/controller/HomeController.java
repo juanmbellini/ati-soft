@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Stack;
 import java.util.stream.Collectors;
 
 /**
@@ -107,16 +108,16 @@ public class HomeController {
      * The last saved {@link Image}.
      */
     private Image lastSaved;
-//
-//    /**
-//     * A {@link Stack} holding {@link Image}s obtained.
-//     */
-//    private final Stack<Image> imageHistory;
-//
-//    /**
-//     * {@link Stack} holding each undone image (i.e those taken from the {@link #imageHistory} stack).
-//     */
-//    private final Stack<Image> undoneImages;
+
+    /**
+     * A {@link Stack} holding {@link Image}s obtained.
+     */
+    private final Stack<Image> imageHistory;
+
+    /**
+     * {@link Stack} holding each undone image (i.e those that were undone).
+     */
+    private final Stack<Image> undoneImages;
 
 
     // ==============================================================================
@@ -126,6 +127,8 @@ public class HomeController {
     @Autowired
     public HomeController(ImageFileService imageFileService) {
         this.imageFileService = imageFileService;
+        this.imageHistory = new Stack<>();
+        this.undoneImages = new Stack<>();
     }
 
     @FXML
@@ -201,6 +204,15 @@ public class HomeController {
         saveImage(newFile);
     }
 
+    @FXML
+    public void undo() {
+        doUndo();
+    }
+
+    @FXML
+    public void redo() {
+        doRedo();
+    }
 
     // ==============================================================================
     // Helper methods
@@ -299,6 +311,40 @@ public class HomeController {
         return fileChooser.showOpenDialog(root.getScene().getWindow());
     }
 
+    /**
+     * Modifies the actual image, setting the given {@link Image} as the actual,
+     * saving the ex-actual in the {@link #imageHistory} {@link Stack},
+     * and clearing the {@link #undoneImages} {@link Stack}.
+     *
+     * @param newImage The new actual image.
+     */
+    private void modify(Image newImage) {
+        this.imageHistory.push(this.actualImage);
+        this.undoneImages.clear();
+        this.actualImage = newImage;
+    }
+
+    /**
+     * Performs the "undo" operation.
+     */
+    private void doUndo() {
+        if (imageHistory.isEmpty()) {
+            return;
+        }
+        this.undoneImages.push(this.actualImage);
+        this.actualImage = this.imageHistory.pop();
+    }
+
+    /**
+     * Performs the "redo" operation.
+     */
+    private void doRedo() {
+        if (undoneImages.isEmpty()) {
+            return;
+        }
+        this.imageHistory.push(this.actualImage);
+        this.actualImage = this.undoneImages.pop();
+    }
 
     // ==============================================================================
     // Helper classes
