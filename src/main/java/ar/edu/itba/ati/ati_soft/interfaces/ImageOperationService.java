@@ -5,7 +5,7 @@ import ar.edu.itba.ati.ati_soft.models.Image;
 /**
  * Defines behaviour for an object that implements several methods that can change images.
  */
-public interface ImageChangerService {
+public interface ImageOperationService {
 
 
     /**

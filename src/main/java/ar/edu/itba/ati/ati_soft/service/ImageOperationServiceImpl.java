@@ -1,6 +1,6 @@
 package ar.edu.itba.ati.ati_soft.service;
 
-import ar.edu.itba.ati.ati_soft.interfaces.ImageChangerService;
+import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +15,10 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Concrete implementation of {@link ImageChangerService}.
+ * Concrete implementation of {@link ImageOperationService}.
  */
 @Service
-public class ImageChangerServiceImpl implements ImageChangerService {
+public class ImageOperationServiceImpl implements ImageOperationService {
 
     @Override
     public Image getNegative(Image image) {

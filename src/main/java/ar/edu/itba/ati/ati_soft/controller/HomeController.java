@@ -1,6 +1,6 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
-import ar.edu.itba.ati.ati_soft.interfaces.ImageChangerService;
+import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
 import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
 import ar.edu.itba.ati.ati_soft.models.Image;
@@ -45,7 +45,7 @@ public class HomeController {
      */
     private final ImageFileService imageFileService;
 
-    private final ImageChangerService imageChangerService;
+    private final ImageOperationService imageOperationService;
 
 
     // ==============================================================================
@@ -128,9 +128,9 @@ public class HomeController {
     // ==============================================================================
 
     @Autowired
-    public HomeController(ImageFileService imageFileService, ImageChangerService imageChangerService) {
+    public HomeController(ImageFileService imageFileService, ImageOperationService imageOperationService) {
         this.imageFileService = imageFileService;
-        this.imageChangerService = imageChangerService;
+        this.imageOperationService = imageOperationService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -231,7 +231,7 @@ public class HomeController {
     @FXML
     public void negative() {
         LOGGER.debug("Calculating negative...");
-        final Image newImage = imageChangerService.getNegative(this.actualImage);
+        final Image newImage = imageOperationService.getNegative(this.actualImage);
         modify(newImage);
         drawActual();
     }
