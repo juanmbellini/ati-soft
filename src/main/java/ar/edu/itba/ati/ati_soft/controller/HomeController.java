@@ -1,5 +1,6 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
+import ar.edu.itba.ati.ati_soft.interfaces.ImageChangerService;
 import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
 import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
 import ar.edu.itba.ati.ati_soft.models.Image;
@@ -43,6 +44,8 @@ public class HomeController {
      * An {@link ImageFileService} to manipulate image files.
      */
     private final ImageFileService imageFileService;
+
+    private final ImageChangerService imageChangerService;
 
 
     // ==============================================================================
@@ -125,8 +128,9 @@ public class HomeController {
     // ==============================================================================
 
     @Autowired
-    public HomeController(ImageFileService imageFileService) {
+    public HomeController(ImageFileService imageFileService, ImageChangerService imageChangerService) {
         this.imageFileService = imageFileService;
+        this.imageChangerService = imageChangerService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -153,8 +157,12 @@ public class HomeController {
 
 
     // ==============================================================================
-    // Behaviour methods
+    // Controller methods
     // ==============================================================================
+
+    // ======================================
+    // File actions
+    // ======================================
 
     /**
      * Closes the application.
@@ -204,6 +212,10 @@ public class HomeController {
         saveImage(newFile);
     }
 
+
+    // ======================================
+    // Edit actions
+    // ======================================
     @FXML
     public void undo() {
         doUndo();
@@ -215,6 +227,15 @@ public class HomeController {
         doRedo();
         drawActual();
     }
+
+    @FXML
+    public void negative() {
+        LOGGER.debug("Calculating negative...");
+        final Image newImage = imageChangerService.getNegative(this.actualImage);
+        modify(newImage);
+        drawActual();
+    }
+
 
     // ==============================================================================
     // Helper methods
