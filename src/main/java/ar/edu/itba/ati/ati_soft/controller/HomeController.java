@@ -207,11 +207,13 @@ public class HomeController {
     @FXML
     public void undo() {
         doUndo();
+        drawActual();
     }
 
     @FXML
     public void redo() {
         doRedo();
+        drawActual();
     }
 
     // ==============================================================================
@@ -309,6 +311,13 @@ public class HomeController {
                 .collect(Collectors.toList());
         fileChooser.getExtensionFilters().addAll(extensionFilters);
         return fileChooser.showOpenDialog(root.getScene().getWindow());
+    }
+
+    /**
+     * Draws the actual image in the {@link #afterImageView} {@link ImageView}.
+     */
+    private void drawActual() {
+        drawImage(this.actualImage.getContent(), this.afterImageView);
     }
 
     /**
