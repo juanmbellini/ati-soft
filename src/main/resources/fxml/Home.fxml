@@ -12,15 +12,20 @@
             <menus>
                 <Menu mnemonicParsing="false" text="File">
                     <items>
-                        <MenuItem mnemonicParsing="false" text="New"/>
+                        <MenuItem mnemonicParsing="false" text="New"
+                                  accelerator="Shortcut+N"/>
                         <SeparatorMenuItem/>
-                        <MenuItem mnemonicParsing="false" text="Open" onAction="#openImage"/>
+                        <MenuItem mnemonicParsing="false" text="Open"
+                                  onAction="#openImage" accelerator="Shortcut+O"/>
                         <MenuItem fx:id="saveMenuItem"
-                                  mnemonicParsing="false" text="Save" onAction="#saveImage"/>
+                                  mnemonicParsing="false" text="Save"
+                                  onAction="#saveImage" accelerator="Shortcut+S"/>
                         <MenuItem fx:id="saveAsMenuItem"
-                                  mnemonicParsing="false" text="Save As..." onAction="#saveImageAs"/>
+                                  mnemonicParsing="false" text="Save As..."
+                                  onAction="#saveImageAs" accelerator="Shortcut+Shift+S" />
                         <SeparatorMenuItem/>
-                        <MenuItem mnemonicParsing="false" onAction="#closeApplication" text="Close"/>
+                        <MenuItem mnemonicParsing="false" text="Close"
+                                  onAction="#closeApplication" accelerator="Shortcut+Q"/>
                     </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Edit">
