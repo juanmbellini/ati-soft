@@ -25,7 +25,8 @@
                 </Menu>
                 <Menu mnemonicParsing="false" text="Edit">
                     <items>
-                        <MenuItem mnemonicParsing="false" text="Algorithm 1"/>
+                        <MenuItem mnemonicParsing="false" text="Undo" onAction="#undo" accelerator="Shortcut+Z"/>
+                        <MenuItem mnemonicParsing="false" text="Redo" onAction="#redo" accelerator="Shortcut+Shift+Z"/>
                         <MenuItem mnemonicParsing="false" text="Algorithm 2"/>
                         <MenuItem mnemonicParsing="false" text="Algorithm 3"/>
                     </items>
