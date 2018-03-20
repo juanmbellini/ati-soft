@@ -3,6 +3,7 @@ package ar.edu.itba.ati.ati_soft.service;
 import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import ar.edu.itba.ati.ati_soft.utils.QuadConsumer;
+import ar.edu.itba.ati.ati_soft.utils.QuadFunction;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -25,10 +26,30 @@ import java.util.stream.Stream;
 @Service
 public class ImageOperationServiceImpl implements ImageOperationService {
 
+
+    @Override
+    public Image sum(Image first, Image second) {
+        final BufferedImage firstContent = first.getContent();
+        final BufferedImage secondContent = second.getContent();
+        if (firstContent.getHeight() != secondContent.getHeight()
+                || secondContent.getWidth() != secondContent.getWidth()) {
+            throw new IllegalArgumentException("Both images must be the same size to be summed.");
+        }
+        final WritableRaster newRaster = createApplying(firstContent.getRaster(),
+                (x, y, i, v) -> v + secondContent.getRaster().getSample(x, y, i),
+                Integer[]::new,
+                (r, x, y, p) -> r.setPixel(x, y, toPrimitiveArray(p)));
+        final BufferedImage newContent = generateNewBufferedImage(getNormalized(newRaster), firstContent);
+        return new Image(newContent);
+    }
+
     @Override
     public Image getNegative(Image image) {
         final BufferedImage content = image.getContent();
-        final WritableRaster newRaster = getNegativeRaster(content.getRaster());
+        final WritableRaster newRaster = createApplying(content.getRaster(),
+                (x, y, i, value) -> 0xFF - value,
+                Integer[]::new,
+                (r, x, y, p) -> r.setPixel(x, y, toPrimitiveArray(p)));
         final BufferedImage newContent = generateNewBufferedImage(newRaster, content);
         return new Image(newContent);
     }
@@ -44,9 +65,9 @@ public class ImageOperationServiceImpl implements ImageOperationService {
         final int maximums[] = IntStream.range(0, bands).map(i -> 0).toArray();
         final int minimums[] = IntStream.range(0, bands).map(i -> 0).toArray();
         populateWithMinAndMax(raster, minimums, maximums);
-        final double[] factors = IntStream.range(0, bands).mapToDouble(i -> 1 / (maximums[i] - minimums[i])).toArray();
+        final double[] factors = IntStream.range(0, bands).mapToDouble(i -> 255 / (maximums[i] - minimums[i])).toArray();
         return createApplying(raster,
-                (value, i) -> ((double) value - minimums[i]) * factors[i],
+                (x, y, i, value) -> ((double) value - minimums[i]) * factors[i],
                 Double[]::new,
                 (r, x, y, p) -> r.setPixel(x, y, toPrimitiveArray(p)));
     }
@@ -87,15 +108,19 @@ public class ImageOperationServiceImpl implements ImageOperationService {
      * and using the given {@code setter} {@link QuadConsumer} to set values in a {@link WritableRaster}.
      *
      * @param raster         The base {@link Raster}.
-     * @param changer        The {@link BiFunction} to apply to each pixel,
-     *                       being the first element the original pixel value, and the second element, the band.
+     * @param changer        The {@link QuadFunction} to apply to each pixel,
+     *                       being the first element, the row of the pixel being changed,
+     *                       the second element, the column of the pixel being changed,
+     *                       the third element, the band being changed,
+     *                       and the fourth element, the original value in the row, column and band.
+     *                       The function must return the changed value.
      * @param pixelGenerator An {@link IntFunction} that will generate pixels.
      * @param setter         A {@link QuadConsumer} which defines how a {@link WritableRaster} is set a {@code T} value.
      * @param <T>            Concrete type of value for each pixel.
      * @return The new {@link WritableRaster}.
      */
     private static <T> WritableRaster createApplying(Raster raster,
-                                                     BiFunction<Integer, Integer, T> changer,
+                                                     QuadFunction<Integer, Integer, Integer, Integer, T> changer,
                                                      IntFunction<T[]> pixelGenerator,
                                                      QuadConsumer<WritableRaster, Integer, Integer, T[]> setter) {
         final WritableRaster newRaster = Raster.createWritableRaster(raster.getSampleModel(), null);
@@ -105,26 +130,12 @@ public class ImageOperationServiceImpl implements ImageOperationService {
                 final T[] newPixel = pixelGenerator.apply(bands);
                 for (int i = 0; i < bands; i++) {
                     final int value = raster.getSample(x, y, i);
-                    newPixel[i] = changer.apply(value, i);
+                    newPixel[i] = changer.apply(x, y, i, value);
                 }
                 setter.accept(newRaster, x, y, newPixel);
             }
         }
         return newRaster;
-    }
-
-
-    /**
-     * Calculates the negative raster for the given {@link BufferedImage}.
-     *
-     * @param raster The base {@link Raster}.
-     * @return A {@link WritableRaster} with the negative of the given {@code bufferedImage}.
-     */
-    private static WritableRaster getNegativeRaster(Raster raster) {
-        return createApplying(raster,
-                (value, i) -> /*0xFF -*/ 2 * value,
-                Integer[]::new,
-                (r, x, y, p) -> r.setPixel(x, y, toPrimitiveArray(p)));
     }
 
     /**

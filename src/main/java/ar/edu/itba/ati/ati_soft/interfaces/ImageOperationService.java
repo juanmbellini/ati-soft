@@ -7,6 +7,15 @@ import ar.edu.itba.ati.ati_soft.models.Image;
  */
 public interface ImageOperationService {
 
+    /**
+     * Sums both images.
+     *
+     * @param first  The first image.
+     * @param second The second image.
+     * @return The sum of both images.
+     */
+    Image sum(Image first, Image second);
+
 
     /**
      * Calculates the negative {@link Image} for the given one.
