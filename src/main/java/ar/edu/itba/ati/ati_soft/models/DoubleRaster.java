@@ -76,6 +76,8 @@ public class DoubleRaster {
      * @return The pixel in the given position.
      */
     public Double[] getPixel(int x, int y) {
+        Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
+        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
         return pixels[x][y];
     }
 
@@ -88,7 +90,42 @@ public class DoubleRaster {
      * @return The selected sample.
      */
     public double getSample(int x, int y, int band) {
+        Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
+        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
+        Assert.isTrue(band >= 0 && band < bands, "Usage a band out of range.");
         return pixels[x][y][band];
+    }
+
+    /**
+     * Sets the given {@code pixel} in the given position.
+     *
+     * @param x     The 'x' position.
+     * @param y     The 'y' position.
+     * @param pixel The pixel to be set.
+     * @throws IllegalArgumentException If the pixel is null, empty, or if it's length is not the legal one.
+     */
+    public void setPixel(int x, int y, Double[] pixel) throws IllegalArgumentException {
+        Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
+        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
+        Assert.notNull(pixel, "The pixel must not be null.");
+        Assert.notEmpty(pixel, "The pixel must not be empty.");
+        Assert.isTrue(pixel.length == bands, "The pixel must have " + bands + " bands.");
+        this.pixels[x][y] = pixel;
+    }
+
+    /**
+     * Sets the given {@code pixel} in the given position.
+     *
+     * @param x      The 'x' position.
+     * @param y      The 'y' position.
+     * @param band   The band of the pixel (i.e the channel).
+     * @param sample The sample to be set.
+     */
+    public void setSample(int x, int y, int band, double sample) throws IllegalArgumentException {
+        Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
+        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
+        Assert.isTrue(band >= 0 && band < bands, "Usage a band out of range.");
+        this.pixels[x][y][band] = sample;
     }
 
     /**
