@@ -16,6 +16,24 @@ public interface ImageOperationService {
      */
     Image sum(Image first, Image second);
 
+    /**
+     * Subtracts the {@code second} image to the {@code first} one.
+     *
+     * @param first  The first image.
+     * @param second The second image.
+     * @return The result of the subtraction.
+     */
+    Image subtract(Image first, Image second);
+
+    /**
+     * Multiplies both images.
+     *
+     * @param first  The first image.
+     * @param second The second image.
+     * @return The result of the multiplication.
+     */
+    Image multiply(Image first, Image second);
+
 
     /**
      * Calculates the negative {@link Image} for the given one.

@@ -12,6 +12,7 @@ import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -24,17 +25,17 @@ public class ImageOperationServiceImpl implements ImageOperationService {
 
     @Override
     public Image sum(Image first, Image second) {
-        final BufferedImage firstContent = first.getContent();
-        final BufferedImage secondContent = second.getContent();
-        if (firstContent.getHeight() != secondContent.getHeight()
-                || secondContent.getWidth() != secondContent.getWidth()) {
-            throw new IllegalArgumentException("Both images must be the same size to be summed.");
-        }
-        final DoubleRaster newRaster = createApplying(DoubleRaster.fromImageIORaster(firstContent.getRaster()),
-                (x, y, i, v) -> v + secondContent.getRaster().getSample(x, y, i));
-        final WritableRaster finalRaster = fromDoubleRaster(getNormalized(newRaster), firstContent.getSampleModel());
-        final BufferedImage newContent = generateNewBufferedImage(finalRaster, firstContent);
-        return new Image(newContent);
+        return twoImagesPixelByPixelOperation(first, second, (v1, v2) -> v1 + v2);
+    }
+
+    @Override
+    public Image subtract(Image first, Image second) {
+        return twoImagesPixelByPixelOperation(first, second, (v1, v2) -> v1 - v2);
+    }
+
+    @Override
+    public Image multiply(Image first, Image second) {
+        return twoImagesPixelByPixelOperation(first, second, (v1, v2) -> v1 * v2);
     }
 
     @Override
@@ -44,6 +45,33 @@ public class ImageOperationServiceImpl implements ImageOperationService {
         final DoubleRaster newRaster = createApplying(raster, (x, y, i, value) -> 0xFF - value);
         final WritableRaster finalRaster = fromDoubleRaster(newRaster, content.getSampleModel());
         final BufferedImage newContent = generateNewBufferedImage(finalRaster, content);
+        return new Image(newContent);
+    }
+
+    /**
+     * Performs a two {@link Image} operation, pixel by pixel,
+     * applying the given {@link BiFunction} to generate the new pixel.
+     *
+     * @param first     The first {@link Image} in the operation.
+     * @param second    The second {@link Image} in the operation.
+     * @param operation A {@link BiFunction} that takes two pixel components (i.e samples),
+     *                  being the 1st argument, the {@code first} {@link Image} pixel component,
+     *                  the 2nd argument, the {@code second} {@link Image} pixel component,
+     *                  and the result, the new value for the pixel component.
+     * @return An {@link Image} whose samples will be the result of applying the operation.
+     */
+    private Image twoImagesPixelByPixelOperation(Image first, Image second,
+                                                 BiFunction<Double, Double, Double> operation) {
+        final BufferedImage firstContent = first.getContent();
+        final BufferedImage secondContent = second.getContent();
+        if (firstContent.getHeight() != secondContent.getHeight()
+                || secondContent.getWidth() != secondContent.getWidth()) {
+            throw new IllegalArgumentException("Both images must be the same size to be summed.");
+        }
+        final DoubleRaster newRaster = createApplying(DoubleRaster.fromImageIORaster(firstContent.getRaster()),
+                (x, y, b, v) -> operation.apply(v, (double) secondContent.getRaster().getSample(x, y, b)));
+        final WritableRaster finalRaster = fromDoubleRaster(getNormalized(newRaster), firstContent.getSampleModel());
+        final BufferedImage newContent = generateNewBufferedImage(finalRaster, firstContent);
         return new Image(newContent);
     }
 
