@@ -1,22 +1,17 @@
 package ar.edu.itba.ati.ati_soft.service;
 
 import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
+import ar.edu.itba.ati.ati_soft.models.DoubleRaster;
 import ar.edu.itba.ati.ati_soft.models.Image;
-import ar.edu.itba.ati.ati_soft.utils.QuadConsumer;
 import ar.edu.itba.ati.ati_soft.utils.QuadFunction;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.Raster;
-import java.awt.image.WritableRaster;
+import java.awt.image.*;
 import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Optional;
-import java.util.function.BiFunction;
-import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -35,22 +30,20 @@ public class ImageOperationServiceImpl implements ImageOperationService {
                 || secondContent.getWidth() != secondContent.getWidth()) {
             throw new IllegalArgumentException("Both images must be the same size to be summed.");
         }
-        final WritableRaster newRaster = createApplying(firstContent.getRaster(),
-                (x, y, i, v) -> v + secondContent.getRaster().getSample(x, y, i),
-                Integer[]::new,
-                (r, x, y, p) -> r.setPixel(x, y, toPrimitiveArray(p)));
-        final BufferedImage newContent = generateNewBufferedImage(getNormalized(newRaster), firstContent);
+        final DoubleRaster newRaster = createApplying(DoubleRaster.fromImageIORaster(firstContent.getRaster()),
+                (x, y, i, v) -> v + secondContent.getRaster().getSample(x, y, i));
+        final WritableRaster finalRaster = fromDoubleRaster(getNormalized(newRaster), firstContent.getSampleModel());
+        final BufferedImage newContent = generateNewBufferedImage(finalRaster, firstContent);
         return new Image(newContent);
     }
 
     @Override
     public Image getNegative(Image image) {
         final BufferedImage content = image.getContent();
-        final WritableRaster newRaster = createApplying(content.getRaster(),
-                (x, y, i, value) -> 0xFF - value,
-                Integer[]::new,
-                (r, x, y, p) -> r.setPixel(x, y, toPrimitiveArray(p)));
-        final BufferedImage newContent = generateNewBufferedImage(newRaster, content);
+        final DoubleRaster raster = DoubleRaster.fromImageIORaster(content.getRaster());
+        final DoubleRaster newRaster = createApplying(raster, (x, y, i, value) -> 0xFF - value);
+        final WritableRaster finalRaster = fromDoubleRaster(newRaster, content.getSampleModel());
+        final BufferedImage newContent = generateNewBufferedImage(finalRaster, content);
         return new Image(newContent);
     }
 
@@ -60,18 +53,14 @@ public class ImageOperationServiceImpl implements ImageOperationService {
      * @param raster The {@link Raster} to be normalized.
      * @return The new {@link WritableRaster} (i.e the given {@link Raster} with the normalization function applied).
      */
-    private static WritableRaster getNormalized(Raster raster) {
-        final int bands = raster.getNumDataElements();
-        final int maximums[] = IntStream.range(0, bands).map(i -> 0).toArray();
-        final int minimums[] = IntStream.range(0, bands).map(i -> 0).toArray();
+    private static DoubleRaster getNormalized(DoubleRaster raster) {
+        final int bands = raster.getBands();
+        final double[] maximums = IntStream.range(0, bands).mapToDouble(i -> 0).toArray();
+        final double[] minimums = IntStream.range(0, bands).mapToDouble(i -> 0).toArray();
         populateWithMinAndMax(raster, minimums, maximums);
         final double[] factors = IntStream.range(0, bands).mapToDouble(i -> 255 / (maximums[i] - minimums[i])).toArray();
-        return createApplying(raster,
-                (x, y, i, value) -> ((double) value - minimums[i]) * factors[i],
-                Double[]::new,
-                (r, x, y, p) -> r.setPixel(x, y, toPrimitiveArray(p)));
+        return createApplying(raster, (x, y, i, value) -> (value - minimums[i]) * factors[i]);
     }
-
 
     /**
      * Populates the given {@code minimums} and {@code maximums} arrays
@@ -82,7 +71,7 @@ public class ImageOperationServiceImpl implements ImageOperationService {
      * @param maximums An array to which the maximum value for each band will be saved.
      * @throws IllegalArgumentException If any of the arrays are null, or if both arrays don'thave the same length.
      */
-    private static void populateWithMinAndMax(Raster raster, final int minimums[], final int maximums[])
+    private static void populateWithMinAndMax(DoubleRaster raster, final double[] minimums, final double[] maximums)
             throws IllegalArgumentException {
         Assert.notNull(minimums, "The minimums array must not be null");
         Assert.notNull(maximums, "The maximums array must not be null");
@@ -93,7 +82,7 @@ public class ImageOperationServiceImpl implements ImageOperationService {
         for (int x = 0; x < raster.getWidth(); x++) {
             for (int y = 0; y < raster.getHeight(); y++) {
                 for (int i = 0; i < bands; i++) {
-                    final int value = raster.getSample(x, y, i);
+                    final double value = raster.getSample(x, y, i);
                     maximums[i] = maximums[i] > value ? maximums[i] : value;
                     minimums[i] = minimums[i] < value ? minimums[i] : value;
                 }
@@ -102,37 +91,51 @@ public class ImageOperationServiceImpl implements ImageOperationService {
     }
 
     /**
-     * Creates a new {@link WritableRaster} using as base the given {@link Raster},
-     * applying the given {@code changer} {@link BiFunction} to each pixel,
-     * using the given {@code pixelGenerator} to create a pixel,
-     * and using the given {@code setter} {@link QuadConsumer} to set values in a {@link WritableRaster}.
+     * Generates a {@link WritableRaster} from the given {@link WritableRaster}, using the given {@link SampleModel}.
      *
-     * @param raster         The base {@link Raster}.
-     * @param changer        The {@link QuadFunction} to apply to each pixel,
-     *                       being the first element, the row of the pixel being changed,
-     *                       the second element, the column of the pixel being changed,
-     *                       the third element, the band being changed,
-     *                       and the fourth element, the original value in the row, column and band.
-     *                       The function must return the changed value.
-     * @param pixelGenerator An {@link IntFunction} that will generate pixels.
-     * @param setter         A {@link QuadConsumer} which defines how a {@link WritableRaster} is set a {@code T} value.
-     * @param <T>            Concrete type of value for each pixel.
-     * @return The new {@link WritableRaster}.
+     * @param raster      The {@link WritableRaster} from where data will be taken..
+     * @param sampleModel THe {@link SampleModel} used to create the new {@link Raster}.
+     * @return The created {@link WritableRaster}.
      */
-    private static <T> WritableRaster createApplying(Raster raster,
-                                                     QuadFunction<Integer, Integer, Integer, Integer, T> changer,
-                                                     IntFunction<T[]> pixelGenerator,
-                                                     QuadConsumer<WritableRaster, Integer, Integer, T[]> setter) {
-        final WritableRaster newRaster = Raster.createWritableRaster(raster.getSampleModel(), null);
-        final int bands = raster.getNumDataElements();
+    private static WritableRaster fromDoubleRaster(DoubleRaster raster, SampleModel sampleModel) {
+        final WritableRaster newRaster = Raster.createWritableRaster(sampleModel, null);
         for (int x = 0; x < raster.getWidth(); x++) {
             for (int y = 0; y < raster.getHeight(); y++) {
-                final T[] newPixel = pixelGenerator.apply(bands);
-                for (int i = 0; i < bands; i++) {
-                    final int value = raster.getSample(x, y, i);
-                    newPixel[i] = changer.apply(x, y, i, value);
+                for (int i = 0; i < raster.getBands(); i++) {
+                    final double value = raster.getSample(x, y, i);
+                    newRaster.setSample(x, y, i, (byte) value);
                 }
-                setter.accept(newRaster, x, y, newPixel);
+            }
+        }
+        return newRaster;
+    }
+
+    /**
+     * Creates a new {@link DoubleRaster} using as base the given {@code raster},
+     * applying the given {@code changer} {@link QuadFunction} to each pixel.
+     *
+     * @param raster  The base {@link DoubleRaster}.
+     * @param changer The {@link QuadFunction} to apply to each pixel,
+     *                being the first element, the row of the pixel being changed,
+     *                the second element, the column of the pixel being changed,
+     *                the third element, the band being changed,
+     *                and the fourth element, the original value in the row, column and band.
+     *                The function must return the changed value.
+     * @return The new {@link DoubleRaster}.
+     */
+    private static DoubleRaster createApplying(DoubleRaster raster,
+                                               QuadFunction<Integer, Integer, Integer, Double, Double> changer) {
+        final int width = raster.getWidth();
+        final int height = raster.getHeight();
+        final int bands = raster.getBands();
+        final DoubleRaster newRaster = DoubleRaster.getTrashRaster(width, height, bands);
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                for (int b = 0; b < bands; b++) {
+                    final double value = raster.getSample(x, y, b);
+                    final double newValue = changer.apply(x, y, b, value);
+                    newRaster.setSample(x, y, b, newValue);
+                }
             }
         }
         return newRaster;

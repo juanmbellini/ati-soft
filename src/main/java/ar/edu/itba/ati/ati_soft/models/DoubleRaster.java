@@ -3,6 +3,7 @@ package ar.edu.itba.ati.ati_soft.models;
 import org.springframework.util.Assert;
 
 import java.awt.image.Raster;
+import java.util.Arrays;
 import java.util.stream.IntStream;
 
 /**
@@ -78,7 +79,8 @@ public class DoubleRaster {
     public Double[] getPixel(int x, int y) {
         Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
         Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
-        return pixels[x][y];
+        Double[] pixel = pixels[x][y];
+        return Arrays.copyOf(pixel, pixel.length); // Copy value to avoid changing state from the outside.
     }
 
     /**
@@ -153,10 +155,22 @@ public class DoubleRaster {
         final Double[][][] pixels = IntStream.range(0, width)
                 .mapToObj(x -> IntStream.range(0, height)
                         .mapToObj(y -> IntStream.range(0, bands)
-                                .mapToDouble(band -> value)
-                                .toArray())
+                                .mapToObj(band -> value)
+                                .toArray(Double[]::new))
                         .toArray(Double[][]::new))
                 .toArray(Double[][][]::new);
+        return new DoubleRaster(pixels);
+    }
+
+    /**
+     * Creates a {@link DoubleRaster} with unknown values.
+     *
+     * @param width  The raster width.
+     * @param height The raster height.
+     * @param bands  The amount of values per pixel.
+     * @return The built {@link DoubleRaster}.
+     */
+    public static DoubleRaster getTrashRaster(int width, int height, int bands) {
         return new DoubleRaster(new Double[width][height][bands]);
     }
 
@@ -170,8 +184,8 @@ public class DoubleRaster {
         final Double[][][] pixels = IntStream.range(0, raster.getWidth())
                 .mapToObj(x -> IntStream.range(0, raster.getHeight())
                         .mapToObj(y -> IntStream.range(0, raster.getNumBands())
-                                .mapToDouble(band -> raster.getSample(x, y, band))
-                                .toArray())
+                                .mapToObj(band -> (double) raster.getSample(x, y, band))
+                                .toArray(Double[]::new))
                         .toArray(Double[][]::new))
                 .toArray(Double[][][]::new);
 
