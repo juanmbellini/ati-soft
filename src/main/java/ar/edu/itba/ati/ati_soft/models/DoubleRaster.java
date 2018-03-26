@@ -36,11 +36,8 @@ public class DoubleRaster {
      * Constructor.
      *
      * @param pixels A three-dimensional array holding raster data.
-     * @throws IllegalArgumentException If the array is not valid (is not a cubic three-dimensional array,
-     *                                  or has null/empty values/sub-arrays.
      */
-    private DoubleRaster(Double[][][] pixels) throws IllegalArgumentException {
-        validatePixelsArray(pixels); // Sanity check
+    private DoubleRaster(Double[][][] pixels) {
         this.width = pixels.length;
         this.height = pixels[0].length;
         this.bands = pixels[0][0].length;
@@ -93,7 +90,7 @@ public class DoubleRaster {
      */
     public double getSample(int x, int y, int band) {
         Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
-        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
+        Assert.isTrue(y >= 0 && y < height, "Usage 'y' value out of range.");
         Assert.isTrue(band >= 0 && band < bands, "Usage a band out of range.");
         return pixels[x][y][band];
     }
@@ -125,7 +122,7 @@ public class DoubleRaster {
      */
     public void setSample(int x, int y, int band, double sample) throws IllegalArgumentException {
         Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
-        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
+        Assert.isTrue(y >= 0 && y < height, "Usage 'y' value out of range.");
         Assert.isTrue(band >= 0 && band < bands, "Usage a band out of range.");
         this.pixels[x][y][band] = sample;
     }
@@ -175,7 +172,7 @@ public class DoubleRaster {
     }
 
     /**
-     * Creates a {@link DoubleRaster} from the given {@link Raster}.ø
+     * Creates a {@link DoubleRaster} from the given {@link Raster}.
      *
      * @param raster The {@link Raster} from where data will be taken.
      * @return The created {@link DoubleRaster}.
@@ -189,6 +186,19 @@ public class DoubleRaster {
                         .toArray(Double[][]::new))
                 .toArray(Double[][][]::new);
 
+        return new DoubleRaster(pixels);
+    }
+
+    /**
+     * Creates a {@link DoubleRaster} from the given three-dimensional array holding raster data.
+     *
+     * @param pixels The three-dimensional array holding raster data.
+     * @return The created {@link DoubleRaster}.
+     * @throws IllegalArgumentException If the array is not valid (is not a cubic three-dimensional array,
+     *                                  or has null/empty values/sub-arrays.
+     */
+    public static DoubleRaster fromArray(Double[][][] pixels) throws IllegalArgumentException {
+        validatePixelsArray(pixels);  // Sanity check
         return new DoubleRaster(pixels);
     }
 
