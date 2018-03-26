@@ -22,7 +22,7 @@
                                   onAction="#saveImage" accelerator="Shortcut+S"/>
                         <MenuItem fx:id="saveAsMenuItem"
                                   mnemonicParsing="false" text="Save As..."
-                                  onAction="#saveImageAs" accelerator="Shortcut+Shift+S" />
+                                  onAction="#saveImageAs" accelerator="Shortcut+Shift+S"/>
                         <SeparatorMenuItem/>
                         <MenuItem mnemonicParsing="false" text="Close"
                                   onAction="#closeApplication" accelerator="Shortcut+Q"/>
@@ -34,10 +34,11 @@
                         <MenuItem mnemonicParsing="false" text="Undo" onAction="#undo" accelerator="Shortcut+Z"/>
                         <MenuItem mnemonicParsing="false" text="Redo" onAction="#redo" accelerator="Shortcut+Shift+Z"/>
                         <SeparatorMenuItem/>
+                        <MenuItem mnemonicParsing="false" text="Sum..." onAction="#sum"/>
+                        <MenuItem mnemonicParsing="false" text="Subtract..." onAction="#subtract"/>
+                        <MenuItem mnemonicParsing="false" text="Multiply..." onAction="#multiply"/>
+                        <SeparatorMenuItem/>
                         <MenuItem mnemonicParsing="false" text="Negative" onAction="#negative"/>
-
-                        <MenuItem mnemonicParsing="false" text="Algorithm 2"/>
-                        <MenuItem mnemonicParsing="false" text="Algorithm 3"/>
                     </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Help">

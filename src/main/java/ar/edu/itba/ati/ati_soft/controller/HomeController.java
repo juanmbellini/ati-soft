@@ -1,7 +1,7 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
-import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
+import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import de.felixroske.jfxsupport.FXMLController;
@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Stack;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -229,6 +230,21 @@ public class HomeController {
     }
 
     @FXML
+    public void sum() {
+        twoImagesOperationAction(imageOperationService::sum, "sum");
+    }
+
+    @FXML
+    public void subtract() {
+        twoImagesOperationAction(imageOperationService::subtract, "subtraction");
+    }
+
+    @FXML
+    public void multiply() {
+        twoImagesOperationAction(imageOperationService::multiply, "multiplication");
+    }
+
+    @FXML
     public void negative() {
         LOGGER.debug("Calculating negative...");
         final Image newImage = imageOperationService.getNegative(this.actualImage);
@@ -339,6 +355,35 @@ public class HomeController {
      */
     private void drawActual() {
         drawImage(this.actualImage.getContent(), this.afterImageView);
+    }
+
+    /**
+     * Performs the given {@code imageOperation},
+     * using the {@link #actualImage} as first {@link Image},
+     * and opening a new {@link Image} using the {@link #openImage()} method.
+     * The result of the operation will be set a the new {@link #actualImage}.
+     *
+     * @param imageOperation The two {@link Image} operation to be performed.
+     * @param operationName  Operation name (to be used for logging).
+     */
+    private void twoImagesOperationAction(BiFunction<Image, Image, Image> imageOperation, String operationName) {
+        Optional.ofNullable(selectFile())
+                .map(anotherImageFile -> {
+                    try {
+                        return imageFileService.openImage(anotherImageFile);
+                    } catch (IOException e) {
+                        LOGGER.error("Could not open image file.");
+                        LOGGER.debug("Error message: {}", e.getMessage());
+                        LOGGER.trace("Stacktrace: ", e);
+                        return null;
+                    }
+                })
+                .map(anotherImage -> imageOperation.apply(this.actualImage, anotherImage))
+                .ifPresent(newImage -> {
+                    LOGGER.debug("Performing {}...", operationName);
+                    modify(newImage);
+                    drawActual();
+                });
     }
 
     /**
