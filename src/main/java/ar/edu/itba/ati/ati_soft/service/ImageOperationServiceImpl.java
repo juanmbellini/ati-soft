@@ -49,10 +49,22 @@ public class ImageOperationServiceImpl implements ImageOperationService {
     }
 
     @Override
+    public Image gammaPower(Image image, double gamma) {
+        final DoubleRaster raster = DoubleRaster.fromImageIORaster(image.getContent().getRaster());
+        final double constant = Math.pow(0xFF, 1 - gamma);
+        return finalizeImageCreation(image, createApplying(raster, (x, y, b, v) -> constant * Math.pow(v, gamma)));
+    }
+
+    @Override
     public Image getNegative(Image image) {
         final DoubleRaster raster = DoubleRaster.fromImageIORaster(image.getContent().getRaster());
         return finalizeImageCreation(image, createApplying(raster, (x, y, i, value) -> 0xFF - value));
     }
+
+
+    // ================================================================================================================
+    // Helper methods
+    // ================================================================================================================
 
     /**
      * Performs a two {@link Image} operation, pixel by pixel,

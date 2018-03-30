@@ -43,6 +43,15 @@ public interface ImageOperationService {
      */
     Image dynamicRangeCompression(Image image);
 
+    /**
+     * Calculates the gamma power function for the given {@link Image}.
+     *
+     * @param image The image to which the gamma function will be calculated.
+     * @param gamma The gamma value.
+     * @return A new {@link Image} with the gamma power function applied.
+     */
+    Image gammaPower(Image image, double gamma);
+
 
     /**
      * Calculates the negative {@link Image} for the given one.
