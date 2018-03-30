@@ -317,6 +317,8 @@ public class HomeController {
         this.lastSaved = image;
         this.openedImageFile = file;
         this.initialImage = image;
+        this.imageHistory.clear();
+        this.undoneImages.clear();
     }
 
     /**
