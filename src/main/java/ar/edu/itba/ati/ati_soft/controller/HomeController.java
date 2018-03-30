@@ -245,6 +245,14 @@ public class HomeController {
     }
 
     @FXML
+    public void dynamicRangeCompression() {
+        LOGGER.debug("Performing the dynamic range compression...");
+        final Image newImage = imageOperationService.dynamicRangeCompression(this.actualImage);
+        modify(newImage);
+        drawActual();
+    }
+
+    @FXML
     public void negative() {
         LOGGER.debug("Calculating negative...");
         final Image newImage = imageOperationService.getNegative(this.actualImage);

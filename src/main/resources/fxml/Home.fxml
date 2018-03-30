@@ -37,6 +37,8 @@
                         <MenuItem mnemonicParsing="false" text="Sum..." onAction="#sum"/>
                         <MenuItem mnemonicParsing="false" text="Subtract..." onAction="#subtract"/>
                         <MenuItem mnemonicParsing="false" text="Multiply..." onAction="#multiply"/>
+                        <MenuItem mnemonicParsing="false" text="Dynamic Range Compression"
+                                  onAction="#dynamicRangeCompression"/>
                         <SeparatorMenuItem/>
                         <MenuItem mnemonicParsing="false" text="Negative" onAction="#negative"/>
                     </items>

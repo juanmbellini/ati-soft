@@ -34,6 +34,15 @@ public interface ImageOperationService {
      */
     Image multiply(Image first, Image second);
 
+    /**
+     * Creates a new {@link Image} from the given one, applying the dynamic range compression transformation.
+     *
+     * @param image The base image.
+     * @return a new {@link Image}
+     * which results from the first one with the dynamic range compression transformation applied to it.
+     */
+    Image dynamicRangeCompression(Image image);
+
 
     /**
      * Calculates the negative {@link Image} for the given one.

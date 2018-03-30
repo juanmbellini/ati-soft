@@ -39,13 +39,19 @@ public class ImageOperationServiceImpl implements ImageOperationService {
     }
 
     @Override
+    public Image dynamicRangeCompression(Image image) {
+        final DoubleRaster raster = DoubleRaster.fromImageIORaster(image.getContent().getRaster());
+        final Double[] maximums = new MinAndMaxContainer(raster).initialize().getMaximums();
+        final double[] constants = IntStream.range(0, raster.getBands())
+                .mapToDouble(i -> 255.0 / Math.log10(1 + maximums[i]))
+                .toArray();
+        return finalizeImageCreation(image, createApplying(raster, (x, y, b, v) -> constants[b] * Math.log10(1 + v)));
+    }
+
+    @Override
     public Image getNegative(Image image) {
-        final BufferedImage content = image.getContent();
-        final DoubleRaster raster = DoubleRaster.fromImageIORaster(content.getRaster());
-        final DoubleRaster newRaster = createApplying(raster, (x, y, i, value) -> 0xFF - value);
-        final WritableRaster finalRaster = fromDoubleRaster(newRaster, content.getSampleModel());
-        final BufferedImage newContent = generateNewBufferedImage(finalRaster, content);
-        return new Image(newContent);
+        final DoubleRaster raster = DoubleRaster.fromImageIORaster(image.getContent().getRaster());
+        return finalizeImageCreation(image, createApplying(raster, (x, y, i, value) -> 0xFF - value));
     }
 
     /**
@@ -68,10 +74,25 @@ public class ImageOperationServiceImpl implements ImageOperationService {
                 || secondContent.getWidth() != secondContent.getWidth()) {
             throw new IllegalArgumentException("Both images must be the same size to be summed.");
         }
-        final DoubleRaster newRaster = createApplying(DoubleRaster.fromImageIORaster(firstContent.getRaster()),
-                (x, y, b, v) -> operation.apply(v, (double) secondContent.getRaster().getSample(x, y, b)));
-        final WritableRaster finalRaster = fromDoubleRaster(getNormalized(newRaster), firstContent.getSampleModel());
-        final BufferedImage newContent = generateNewBufferedImage(finalRaster, firstContent);
+        final DoubleRaster raster = DoubleRaster.fromImageIORaster(firstContent.getRaster());
+        return finalizeImageCreation(first,
+                createApplying(raster,
+                        (x, y, b, v) -> operation.apply(v, (double) secondContent.getRaster().getSample(x, y, b))));
+    }
+
+    /**
+     * Performs the last step of building a new {@link Image}, taking data from the first one,
+     * and building it with the {@code newRaster}.
+     *
+     * @param original  The original {@link Image} from where data will be taken
+     *                  (i.e properties and {@link SampleModel}).
+     * @param newRaster The {@link DoubleRaster} containing the new samples.
+     * @return The built {@link Image}.
+     */
+    private static Image finalizeImageCreation(Image original, DoubleRaster newRaster) {
+        final BufferedImage originalContent = original.getContent();
+        final WritableRaster finalRaster = fromDoubleRaster(getNormalized(newRaster), originalContent.getSampleModel());
+        final BufferedImage newContent = generateNewBufferedImage(finalRaster, originalContent);
         return new Image(newContent);
     }
 
@@ -82,41 +103,14 @@ public class ImageOperationServiceImpl implements ImageOperationService {
      * @return The new {@link WritableRaster} (i.e the given {@link Raster} with the normalization function applied).
      */
     private static DoubleRaster getNormalized(DoubleRaster raster) {
-        final int bands = raster.getBands();
-        final double[] maximums = IntStream.range(0, bands).mapToDouble(i -> 0).toArray();
-        final double[] minimums = IntStream.range(0, bands).mapToDouble(i -> 0).toArray();
-        populateWithMinAndMax(raster, minimums, maximums);
-        final double[] factors = IntStream.range(0, bands).mapToDouble(i -> 255 / (maximums[i] - minimums[i])).toArray();
+        final MinAndMaxContainer container = new MinAndMaxContainer(raster).initialize();
+        final Double[] minimums = container.getMinimums();
+        final Double[] maximums = container.getMaximums();
+        final double[] factors = IntStream.range(0, raster.getBands())
+                .mapToDouble(i -> 255 / (maximums[i] - minimums[i])).toArray();
         return createApplying(raster, (x, y, i, value) -> (value - minimums[i]) * factors[i]);
     }
 
-    /**
-     * Populates the given {@code minimums} and {@code maximums} arrays
-     * with the minimums and maximums values for each band.
-     *
-     * @param raster   The {@link Raster} to which the calculation will be performed.
-     * @param minimums An array to which the minimum value for each band will be saved.
-     * @param maximums An array to which the maximum value for each band will be saved.
-     * @throws IllegalArgumentException If any of the arrays are null, or if both arrays don'thave the same length.
-     */
-    private static void populateWithMinAndMax(DoubleRaster raster, final double[] minimums, final double[] maximums)
-            throws IllegalArgumentException {
-        Assert.notNull(minimums, "The minimums array must not be null");
-        Assert.notNull(maximums, "The maximums array must not be null");
-        if (minimums.length != maximums.length) {
-            throw new IllegalArgumentException("Both minimums and maximums array must have the same length");
-        }
-        final int bands = minimums.length; // Using minimums, but is the same to use maximums.
-        for (int x = 0; x < raster.getWidth(); x++) {
-            for (int y = 0; y < raster.getHeight(); y++) {
-                for (int i = 0; i < bands; i++) {
-                    final double value = raster.getSample(x, y, i);
-                    maximums[i] = maximums[i] > value ? maximums[i] : value;
-                    minimums[i] = minimums[i] < value ? minimums[i] : value;
-                }
-            }
-        }
-    }
 
     /**
      * Generates a {@link WritableRaster} from the given {@link WritableRaster}, using the given {@link SampleModel}.
@@ -169,34 +163,6 @@ public class ImageOperationServiceImpl implements ImageOperationService {
         return newRaster;
     }
 
-    /**
-     * Transforms the given {@code original} array into a primitive array.
-     *
-     * @param original The original array to be copied.
-     * @return The new Array.
-     */
-    private static int[] toPrimitiveArray(Integer[] original) {
-        final int[] result = new int[original.length];
-        for (int i = 0; i < result.length; i++) {
-            result[i] = original[i];
-        }
-        return result;
-    }
-
-    /**
-     * Transforms the given {@code original} array into a primitive array.
-     *
-     * @param original The original array to be copied.
-     * @return The new Array.
-     */
-    private static double[] toPrimitiveArray(Double[] original) {
-        final double[] result = new double[original.length];
-        for (int i = 0; i < result.length; i++) {
-            result[i] = original[i];
-        }
-        return result;
-    }
-
 
     /**
      * Generates a new {@link BufferedImage}, using the given {@link WritableRaster},
@@ -206,7 +172,7 @@ public class ImageOperationServiceImpl implements ImageOperationService {
      * @param base           A {@link BufferedImage} from which properties will be taken.
      * @return The new {@link BufferedImage}.
      */
-    private BufferedImage generateNewBufferedImage(WritableRaster writableRaster, BufferedImage base) {
+    private static BufferedImage generateNewBufferedImage(WritableRaster writableRaster, BufferedImage base) {
         final ColorModel colorModel = base.getColorModel();
         final boolean preMultiplied = base.isAlphaPremultiplied();
         final Hashtable<String, Object> properties = getProperties(base);
@@ -227,4 +193,88 @@ public class ImageOperationServiceImpl implements ImageOperationService {
                 .collect(Hashtable::new, (t, e) -> t.put(e.getKey(), e.getValue()), Hashtable::putAll);
     }
 
+
+    /**
+     * Container class holding minimums and maximums values for a given {@link DoubleRaster}.
+     */
+    private final static class MinAndMaxContainer {
+
+        /**
+         * An array holding the min. values.
+         */
+        private final Double[] minimums;
+
+        /**
+         * An array holding the max. values.
+         */
+        private final Double[] maximums;
+
+        /**
+         * The {@link DoubleRaster} to which min. and max. values will be calculated, stored for lazy initialization.
+         */
+        private final DoubleRaster raster;
+
+        /**
+         * Constructor.
+         *
+         * @param raster The {@link DoubleRaster} to which min. and max. values will be calculated.
+         */
+        private MinAndMaxContainer(DoubleRaster raster) {
+            this.minimums = raster.getPixel(0, 0);
+            this.maximums = raster.getPixel(0, 0);
+            this.raster = raster;
+        }
+
+        /**
+         * Initializes this container.
+         *
+         * @return {@code this}, for method chaining.
+         */
+        private MinAndMaxContainer initialize() {
+            populate(raster, minimums, maximums);
+            return this;
+        }
+
+        /**
+         * @return The array containing the min. values.
+         */
+        private Double[] getMinimums() {
+            return Arrays.copyOf(minimums, minimums.length);
+        }
+
+        /**
+         * @return The array containing the max. values.
+         */
+        private Double[] getMaximums() {
+            return Arrays.copyOf(maximums, maximums.length);
+        }
+
+        /**
+         * Populates the given {@code minimums} and {@code maximums} arrays
+         * with the minimums and maximums values for each band.
+         *
+         * @param raster   The {@link Raster} to which the calculation will be performed.
+         * @param minimums An array to which the minimum value for each band will be saved.
+         * @param maximums An array to which the maximum value for each band will be saved.
+         * @throws IllegalArgumentException If any of the arrays are null, or if both arrays don'thave the same length.
+         */
+        private void populate(DoubleRaster raster, final Double[] minimums, final Double[] maximums)
+                throws IllegalArgumentException {
+            Assert.notNull(minimums, "The minimums array must not be null");
+            Assert.notNull(maximums, "The maximums array must not be null");
+            if (minimums.length != maximums.length) {
+                throw new IllegalArgumentException("Both minimums and maximums array must have the same length");
+            }
+            final int bands = minimums.length; // Using minimums, but is the same to use maximums.
+            for (int x = 0; x < raster.getWidth(); x++) {
+                for (int y = 0; y < raster.getHeight(); y++) {
+                    for (int i = 0; i < bands; i++) {
+                        final double value = raster.getSample(x, y, i);
+                        maximums[i] = maximums[i] > value ? maximums[i] : value;
+                        minimums[i] = minimums[i] < value ? minimums[i] : value;
+                    }
+                }
+            }
+        }
+    }
 }
