@@ -1,14 +1,16 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
-import ar.edu.itba.ati.ati_soft.interfaces.ImageChangerService;
 import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
+import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
@@ -23,6 +25,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Stack;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -45,7 +49,7 @@ public class HomeController {
      */
     private final ImageFileService imageFileService;
 
-    private final ImageChangerService imageChangerService;
+    private final ImageOperationService imageOperationService;
 
 
     // ==============================================================================
@@ -128,9 +132,9 @@ public class HomeController {
     // ==============================================================================
 
     @Autowired
-    public HomeController(ImageFileService imageFileService, ImageChangerService imageChangerService) {
+    public HomeController(ImageFileService imageFileService, ImageOperationService imageOperationService) {
         this.imageFileService = imageFileService;
-        this.imageChangerService = imageChangerService;
+        this.imageOperationService = imageOperationService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -216,6 +220,7 @@ public class HomeController {
     // ======================================
     // Edit actions
     // ======================================
+
     @FXML
     public void undo() {
         doUndo();
@@ -229,11 +234,36 @@ public class HomeController {
     }
 
     @FXML
+    public void sum() {
+        twoImagesOperationAction(imageOperationService::sum, "sum");
+    }
+
+    @FXML
+    public void subtract() {
+        twoImagesOperationAction(imageOperationService::subtract, "subtraction");
+    }
+
+    @FXML
+    public void multiply() {
+        twoImagesOperationAction(imageOperationService::multiply, "multiplication");
+    }
+
+    @FXML
+    public void dynamicRangeCompression() {
+        oneImageOperationAction(imageOperationService::dynamicRangeCompression, "dynamic range compression");
+    }
+
+    @FXML
+    public void gammaPower() {
+        getNumber("Gamma power", "", "Insert the gamma value", Double::parseDouble)
+                .ifPresent(gamma ->
+                        oneImageOperationAction(image -> imageOperationService.gammaPower(image, gamma),
+                                "gamma power transformation"));
+    }
+
+    @FXML
     public void negative() {
-        LOGGER.debug("Calculating negative...");
-        final Image newImage = imageChangerService.getNegative(this.actualImage);
-        modify(newImage);
-        drawActual();
+        oneImageOperationAction(imageOperationService::getNegative, "negative calculation");
     }
 
 
@@ -335,10 +365,101 @@ public class HomeController {
     }
 
     /**
-     * Draws the actual image in the {@link #afterImageView} {@link ImageView}.
+     * Show ups a {@link javafx.scene.control.Dialog} that expects a numeric value to be inserted.
+     * The transformation is performed using a {@link Function} that takes a {@link String}
+     * and converts it into a {@link Number}.
+     * In case the inserted value is not a number that can be created with the {@code converter},
+     * an {@link javafx.scene.control.Alert.AlertType#ERROR} {@link Alert} is showed up.
+     *
+     * @param header       The message to be displayed in the {@link javafx.scene.control.Dialog} header.
+     * @param defaultValue The default value for the {@link javafx.scene.control.Dialog}
+     *                     (i.e what appears in the text field).
+     * @param converter    A {@link Function} to be used to create the {@link Number}.
+     * @param <N>          The concrete subtype of {@link Number} (e.g {@link Integer} or {@link Double}).
+     * @return An {@link Optional} of {@code N} holding the inserted value,
+     * or empty if no value, or no number was inserted.
      */
-    private void drawActual() {
-        drawImage(this.actualImage.getContent(), this.afterImageView);
+    private <N extends Number> Optional<N> getNumber(String title, String header, String defaultValue,
+                                                     Function<String, N> converter) {
+        final TextInputDialog textInputDialog = new TextInputDialog(defaultValue);
+        textInputDialog.setHeaderText(header);
+        textInputDialog.setTitle(title);
+        return textInputDialog.showAndWait().map(value -> convertToNumber(value, converter));
+    }
+
+    /**
+     * Converts the given {@code value} into a number, using the given {@code converter}.
+     * In case the {@code value} is not a valid number
+     * (i.e can't be converted into a number with the given {@code converter}),
+     * an {@link Alert} {@link javafx.scene.control.Dialog} is displayed, and null is returned.
+     *
+     * @param value     The {@link String} to be converted into a number.
+     * @param converter The {@link Function} to apply to the {@code value} to transform it into a number.
+     * @param <N>       The concrete subtype of {@link Number} (e.g {@link Integer} or {@link Double}).
+     * @return The converted value.
+     */
+    private <N extends Number> N convertToNumber(String value, Function<String, N> converter) {
+        try {
+            return converter.apply(value);
+        } catch (NumberFormatException e) {
+            final Alert alert = new Alert(Alert.AlertType.ERROR,
+                    "The value \"" + value + "\" is not a number.");
+            alert.setHeaderText("");
+            alert.show();
+            return null;
+        }
+    }
+
+    /**
+     * Performs the given {@code imageOperation}, applying it to the given {@link #actualImage}.
+     * The result of the operation will be set a the new {@link #actualImage}.
+     *
+     * @param imageOperation The operation to be performed over the {@link #actualImage}.
+     * @param operationName  Operation name (to be used for logging).
+     */
+    private void oneImageOperationAction(Function<Image, Image> imageOperation, String operationName) {
+        LOGGER.debug("Performing the {}...", operationName);
+        final Image newImage = imageOperation.apply(this.actualImage);
+        afterChanging(newImage);
+    }
+
+
+    /**
+     * Performs the given {@code imageOperation},
+     * using the {@link #actualImage} as first {@link Image},
+     * and opening a new {@link Image} using the {@link #openImage()} method.
+     * The result of the operation will be set a the new {@link #actualImage}.
+     *
+     * @param imageOperation The two {@link Image} operation to be performed.
+     * @param operationName  Operation name (to be used for logging).
+     */
+    private void twoImagesOperationAction(BiFunction<Image, Image, Image> imageOperation, String operationName) {
+        Optional.ofNullable(selectFile())
+                .map(anotherImageFile -> {
+                    try {
+                        return imageFileService.openImage(anotherImageFile);
+                    } catch (IOException e) {
+                        LOGGER.error("Could not open image file.");
+                        LOGGER.debug("Error message: {}", e.getMessage());
+                        LOGGER.trace("Stacktrace: ", e);
+                        return null;
+                    }
+                })
+                .map(anotherImage -> imageOperation.apply(this.actualImage, anotherImage))
+                .ifPresent(newImage -> {
+                    LOGGER.debug("Performing {}...", operationName);
+                    afterChanging(newImage);
+                });
+    }
+
+    /**
+     * Performs the last steps that must be done after changing the {@link #actualImage}.
+     *
+     * @param newImage The new {@link Image}.
+     */
+    private void afterChanging(Image newImage) {
+        modify(newImage);
+        drawActual();
     }
 
     /**
@@ -352,6 +473,13 @@ public class HomeController {
         this.imageHistory.push(this.actualImage);
         this.undoneImages.clear();
         this.actualImage = newImage;
+    }
+
+    /**
+     * Draws the actual image in the {@link #afterImageView} {@link ImageView}.
+     */
+    private void drawActual() {
+        drawImage(this.actualImage.getContent(), this.afterImageView);
     }
 
     /**
