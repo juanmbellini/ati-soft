@@ -8,13 +8,16 @@ import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,16 +79,10 @@ public class HomeController {
     private MenuItem saveAsMenuItem;
 
     /**
-     * The {@link ImageView} that will show an image without any changes.
-     */
-    @FXML
-    private ImageView beforeImageView;
-
-    /**
      * The {@link ImageView} that will show an image with changes applied.
      */
     @FXML
-    private ImageView afterImageView;
+    private ImageView imageView;
 
     // ==============================================================================
     // Event handling
@@ -105,11 +102,11 @@ public class HomeController {
      * The actual image being displayed.
      */
     private Image actualImage;
-//
-//    /**
-//     * The initial {@link Image}
-//     */
-//    private Image initialImage;
+
+    /**
+     * The initial {@link Image} (used for displaying it with the {@link #showOriginal()} method).
+     */
+    private Image initialImage;
 
     /**
      * The last saved {@link Image}.
@@ -155,7 +152,6 @@ public class HomeController {
 //        };
 //        this.saveMenuItem.disableProperty().bind(Bindings.or(notOpenedBinding, notModifiedBinding));
 //        this.saveAsMenuItem.disableProperty().bind(notOpenedBinding);
-
         LOGGER.debug("Home controller initialized");
     }
 
@@ -186,10 +182,7 @@ public class HomeController {
         Optional.ofNullable(selectFile())
                 .map(this::openImage)
                 .map(Image::getContent)
-                .ifPresent(image -> {
-                    drawImage(image, beforeImageView);
-                    drawImage(image, afterImageView);
-                });
+                .ifPresent(image -> drawImage(image, imageView));
     }
 
     @FXML
@@ -266,6 +259,27 @@ public class HomeController {
         oneImageOperationAction(imageOperationService::getNegative, "negative calculation");
     }
 
+    // ======================================
+    // View actions
+    // ======================================
+
+    @FXML
+    public void showOriginal() {
+        final ImageView originalImageView = new ImageView();
+        drawImage(initialImage.getContent(), originalImageView);
+        originalImageView.preserveRatioProperty().setValue(true);
+        final double width = 700;
+        originalImageView.setFitWidth(width);
+        final double height = originalImageView.getLayoutBounds().getHeight();
+        final BorderPane borderPane = new BorderPane(originalImageView);
+        final Scene scene = new Scene(borderPane, width, height);
+        final Stage stage = new Stage();
+        stage.setScene(scene);
+        originalImageView.fitWidthProperty().bind(stage.widthProperty());
+        originalImageView.fitHeightProperty().bind(stage.heightProperty());
+        stage.show();
+    }
+
 
     // ==============================================================================
     // Helper methods
@@ -302,6 +316,7 @@ public class HomeController {
         this.actualImage = image;
         this.lastSaved = image;
         this.openedImageFile = file;
+        this.initialImage = image;
     }
 
     /**
@@ -476,10 +491,10 @@ public class HomeController {
     }
 
     /**
-     * Draws the actual image in the {@link #afterImageView} {@link ImageView}.
+     * Draws the actual image in the {@link #imageView} {@link ImageView}.
      */
     private void drawActual() {
-        drawImage(this.actualImage.getContent(), this.afterImageView);
+        drawImage(this.actualImage.getContent(), this.imageView);
     }
 
     /**
