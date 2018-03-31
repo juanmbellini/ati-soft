@@ -276,7 +276,7 @@ public class HomeController {
         getNumber("Gamma power", "", "Insert the gamma value", Double::parseDouble)
                 .ifPresent(gamma ->
                         oneImageOperationAction(image -> imageOperationService.gammaPower(image, gamma),
-                                "gamma power transformation", Function.identity()));
+                                "gamma power transformation", imageOperationService::normalize));
     }
 
     @FXML
