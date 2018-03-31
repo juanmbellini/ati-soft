@@ -259,6 +259,14 @@ public class HomeController {
     }
 
     @FXML
+    public void multiplyByScalar() {
+        getNumber("Multiplication by scalar", "", "Insert the scalar", Double::parseDouble)
+                .ifPresent(scalar ->
+                        oneImageOperationAction(image -> imageOperationService.multiplyByScalar(image, scalar),
+                                "scalar multiplication", imageOperationService::dynamicRangeCompression));
+    }
+
+    @FXML
     public void dynamicRangeCompression() {
         oneImageOperationAction(imageOperationService::dynamicRangeCompression, "dynamic range compression", Function.identity());
     }

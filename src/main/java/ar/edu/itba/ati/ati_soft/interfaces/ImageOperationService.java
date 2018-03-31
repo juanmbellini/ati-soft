@@ -35,6 +35,15 @@ public interface ImageOperationService {
     Image multiply(Image first, Image second);
 
     /**
+     * Multiplies the given {@link Image} by the given {@code scalar}.
+     *
+     * @param image  The {@link Image} to which the scalar will be multiplied.
+     * @param scalar The scalar value.
+     * @return A new {@link Image} with the result of multiplying the given {@link Image} with the given {@code scalar}.
+     */
+    Image multiplyByScalar(Image image, double scalar);
+
+    /**
      * Creates a new {@link Image} from the given one, applying the dynamic range compression transformation.
      *
      * @param image The base {@link Image}.

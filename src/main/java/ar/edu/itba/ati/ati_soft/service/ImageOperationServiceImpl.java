@@ -33,6 +33,11 @@ public class ImageOperationServiceImpl implements ImageOperationService {
     }
 
     @Override
+    public Image multiplyByScalar(Image image, double scalar) {
+        return createApplying(image, (x, y, b, v) -> scalar * v);
+    }
+
+    @Override
     public Image dynamicRangeCompression(Image image) {
         final Double[] maximums = new MinAndMaxContainer(image).initialize().getMaximums();
         final double[] constants = IntStream.range(0, image.getBands())

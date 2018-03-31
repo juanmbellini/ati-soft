@@ -35,6 +35,7 @@
                 <MenuItem mnemonicParsing="false" text="Sum..." onAction="#sum"/>
                 <MenuItem mnemonicParsing="false" text="Subtract..." onAction="#subtract"/>
                 <MenuItem mnemonicParsing="false" text="Multiply..." onAction="#multiply"/>
+                <MenuItem mnemonicParsing="false" text="Multiply by scalar..." onAction="#multiplyByScalar"/>
                 <MenuItem mnemonicParsing="false" text="Dynamic Range Compression"
                           onAction="#dynamicRangeCompression"/>
                 <MenuItem mnemonicParsing="false" text="Gamma power..." onAction="#gammaPower"/>
