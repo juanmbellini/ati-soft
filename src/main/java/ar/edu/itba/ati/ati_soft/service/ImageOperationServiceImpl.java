@@ -49,7 +49,8 @@ public class ImageOperationServiceImpl implements ImageOperationService {
 
     @Override
     public Image getNegative(Image image) {
-        return createApplying(image, (x, y, i, value) -> 0xFF - value);
+        // Image must be normalized as it can have pixels bigger than 0xFF
+        return createApplying(normalize(image), (x, y, i, value) -> 0xFF - value);
     }
 
     @Override
