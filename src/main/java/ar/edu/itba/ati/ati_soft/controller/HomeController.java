@@ -1,11 +1,13 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
-import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
+import ar.edu.itba.ati.ati_soft.interfaces.ImageIOContainer;
+import ar.edu.itba.ati.ati_soft.interfaces.ImageIOService;
 import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -13,8 +15,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelWriter;
-import javafx.scene.image.WritableImage;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -48,10 +48,13 @@ public class HomeController {
     // ==============================================================================
 
     /**
-     * An {@link ImageFileService} to manipulate image files.
+     * An {@link ImageIOService} to perform ImageIO stuff (opening, saving, translating, etc).
      */
-    private final ImageFileService imageFileService;
+    private final ImageIOService imageIOService;
 
+    /**
+     * An {@link ImageOperationService} to perform image operations over the actual image.
+     */
     private final ImageOperationService imageOperationService;
 
 
@@ -90,38 +93,55 @@ public class HomeController {
 
 
     // ==============================================================================
-    // Fields
+    // State
     // ==============================================================================
 
+    // ================================
+    // Initial stuff
+    // ================================
+
     /**
-     * The {@link File} from where the image was opened.
+     * The {@link File} from where the image was opened (i.e used for saving the image).
      */
     private File openedImageFile;
 
     /**
-     * The actual image being displayed.
+     * An {@link ImageIOContainer} that holds the opened {@link Image}.
+     * This is used to build a new {@link BufferedImage} each time the actual {@link Image} is changed
+     * (i.e just the metadata is used).
      */
-    private Image actualImage;
+    private ImageIOContainer initialImageIOContainer;
 
     /**
-     * The initial {@link Image} (used for displaying it with the {@link #showOriginal()} method).
+     * The initially displayed {@link BufferedImage},
+     * used for quickly display of the original image with the {@link #showOriginal()} method.
      */
-    private Image initialImage;
+    private BufferedImage initialDisplayed;
+
+
+    // ================================
+    // Actual stuff
+    // ================================
+
+    /**
+     * The actual image being displayed.
+     */
+    private ImagePair actual;
 
     /**
      * The last saved {@link Image}.
      */
-    private Image lastSaved;
+    private ImagePair lastSaved;
 
     /**
      * A {@link Stack} holding {@link Image}s obtained.
      */
-    private final Stack<Image> imageHistory;
+    private final Stack<ImagePair> imageHistory;
 
     /**
      * {@link Stack} holding each undone image (i.e those that were undone).
      */
-    private final Stack<Image> undoneImages;
+    private final Stack<ImagePair> undoneImages;
 
 
     // ==============================================================================
@@ -129,8 +149,8 @@ public class HomeController {
     // ==============================================================================
 
     @Autowired
-    public HomeController(ImageFileService imageFileService, ImageOperationService imageOperationService) {
-        this.imageFileService = imageFileService;
+    public HomeController(ImageIOService imageIOService, ImageOperationService imageOperationService) {
+        this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
@@ -179,17 +199,14 @@ public class HomeController {
     @FXML
     public void openImage() {
         LOGGER.debug("Opening image...");
-        Optional.ofNullable(selectFile())
-                .map(this::openImage)
-                .map(Image::getContent)
-                .ifPresent(image -> drawImage(image, imageView));
+        Optional.ofNullable(selectFile()).ifPresent(this::openImage);
     }
 
     @FXML
     public void saveImage() {
         LOGGER.debug("Saving image...");
         validateSave();
-        if (actualImage == lastSaved) {
+        if (actual.getDisplayed() == lastSaved.getDisplayed()) {
             LOGGER.warn("No changes has been made to image.");
         }
         saveImage(openedImageFile);
@@ -228,22 +245,22 @@ public class HomeController {
 
     @FXML
     public void sum() {
-        twoImagesOperationAction(imageOperationService::sum, "sum");
+        twoImagesOperationAction(imageOperationService::sum, "sum", imageOperationService::normalize);
     }
 
     @FXML
     public void subtract() {
-        twoImagesOperationAction(imageOperationService::subtract, "subtraction");
+        twoImagesOperationAction(imageOperationService::subtract, "subtraction", imageOperationService::normalize);
     }
 
     @FXML
     public void multiply() {
-        twoImagesOperationAction(imageOperationService::multiply, "multiplication");
+        twoImagesOperationAction(imageOperationService::multiply, "multiplication", imageOperationService::normalize);
     }
 
     @FXML
     public void dynamicRangeCompression() {
-        oneImageOperationAction(imageOperationService::dynamicRangeCompression, "dynamic range compression");
+        oneImageOperationAction(imageOperationService::dynamicRangeCompression, "dynamic range compression", Function.identity());
     }
 
     @FXML
@@ -251,12 +268,12 @@ public class HomeController {
         getNumber("Gamma power", "", "Insert the gamma value", Double::parseDouble)
                 .ifPresent(gamma ->
                         oneImageOperationAction(image -> imageOperationService.gammaPower(image, gamma),
-                                "gamma power transformation"));
+                                "gamma power transformation", Function.identity()));
     }
 
     @FXML
     public void negative() {
-        oneImageOperationAction(imageOperationService::getNegative, "negative calculation");
+        oneImageOperationAction(imageOperationService::getNegative, "negative calculation", Function.identity());
     }
 
     // ======================================
@@ -266,7 +283,7 @@ public class HomeController {
     @FXML
     public void showOriginal() {
         final ImageView originalImageView = new ImageView();
-        drawImage(initialImage.getContent(), originalImageView);
+        drawImage(initialDisplayed, originalImageView);
         originalImageView.preserveRatioProperty().setValue(true);
         final double width = 700;
         originalImageView.setFitWidth(width);
@@ -286,23 +303,18 @@ public class HomeController {
     // ==============================================================================
 
     /**
-     * Opens the given {@code imageFile}.
+     * Opens the given {@code imageFile}, performing the necessary steps to initialize everything.
      *
      * @param imageFile The {@link File} containing the image to be opened.
-     * @return a {@link BufferedImage} instance containing the image data,
-     * or {@code null} in case the image could not be opened.
      */
-    private Image openImage(File imageFile) {
+    private void openImage(File imageFile) {
         try {
-            final Image image = imageFileService.openImage(imageFile);
+            final BufferedImage image = imageIOService.openImage(imageFile);
             afterOpeningImage(image, imageFile);
-            return image;
         } catch (UnsupportedImageFileException e) {
             LOGGER.debug("File is not an image");
-            return null;
         } catch (IOException e) {
             LOGGER.debug("Could not open image");
-            return null;
         }
     }
 
@@ -312,13 +324,15 @@ public class HomeController {
      * @param image The opened {@link Image}.
      * @param file  The {@link File} from where the image was opened.
      */
-    private void afterOpeningImage(Image image, File file) {
-        this.actualImage = image;
-        this.lastSaved = image;
+    private void afterOpeningImage(BufferedImage image, File file) {
+        this.initialDisplayed = image;
+        this.initialImageIOContainer = imageIOService.fromImageIO(image);
+        this.actual = new ImagePair(this.initialImageIOContainer.getImage(), image);
+        this.lastSaved = this.actual;
         this.openedImageFile = file;
-        this.initialImage = image;
         this.imageHistory.clear();
         this.undoneImages.clear();
+        drawActual();
     }
 
     /**
@@ -327,7 +341,7 @@ public class HomeController {
      * @throws IllegalStateException If the state of the system does not allow to perform a save operation.
      */
     private void validateSave() throws IllegalStateException {
-        if (this.actualImage == null) {
+        if (this.actual == null) {
             throw new IllegalStateException("No opened image.");
         }
     }
@@ -335,11 +349,11 @@ public class HomeController {
     /**
      * Performs the save operation, using the given {@link File}.
      *
-     * @param file {@link File} where the {@link #actualImage} will be saved.
+     * @param file {@link File} where the actual image will be saved.
      */
     private void saveImage(File file) {
         try {
-            imageFileService.saveImage(actualImage, file);
+            imageIOService.saveImage(this.actual.getDisplayed(), file);
         } catch (UnsupportedImageFileException e) {
             LOGGER.debug("Something wrong had happened.");
         } catch (IOException e) {
@@ -347,22 +361,6 @@ public class HomeController {
         }
     }
 
-    /**
-     * Draws the given {@link BufferedImage} into the given {@link ImageView}.
-     *
-     * @param image     The image to be drawn.
-     * @param imageView The {@link ImageView} to which the image will be drawn.
-     */
-    private static void drawImage(BufferedImage image, ImageView imageView) {
-        final WritableImage writableImage = new WritableImage(image.getWidth(), image.getHeight());
-        final PixelWriter pixelWriter = writableImage.getPixelWriter();
-        for (int i = 0; i < image.getWidth(); i++) {
-            for (int j = 0; j < image.getHeight(); j++) {
-                pixelWriter.setArgb(i, j, image.getRGB(i, j));
-            }
-        }
-        imageView.setImage(writableImage);
-    }
 
     /**
      * Makes the user select a file by the use of a {@link FileChooser}.
@@ -373,7 +371,7 @@ public class HomeController {
         final FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select image");
         fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
-        final List<FileChooser.ExtensionFilter> extensionFilters = imageFileService.getSupportedFormats().entrySet()
+        final List<FileChooser.ExtensionFilter> extensionFilters = imageIOService.getSupportedFormats().entrySet()
                 .stream()
                 .map(e -> new FileChooser.ExtensionFilter(e.getValue() + " (." + e.getKey() + ")", "*." + e.getKey()))
                 .collect(Collectors.toList());
@@ -428,33 +426,41 @@ public class HomeController {
     }
 
     /**
-     * Performs the given {@code imageOperation}, applying it to the given {@link #actualImage}.
-     * The result of the operation will be set a the new {@link #actualImage}.
+     * Performs the given {@code imageOperation}, applying it to the given actual image.
+     * The result of the operation will be set as the new actual image.
      *
-     * @param imageOperation The operation to be performed over the {@link #actualImage}.
-     * @param operationName  Operation name (to be used for logging).
+     * @param imageOperation   The operation to be performed over the actual image.
+     * @param operationName    Operation name (to be used for logging).
+     * @param displayOperation A {@link Function} that takes the new {@link Image}
+     *                         and performs the operation that must be done to be displayed.
+     *                         (e.g normalization, dynamic range compression, etc.)
      */
-    private void oneImageOperationAction(Function<Image, Image> imageOperation, String operationName) {
+    private void oneImageOperationAction(Function<Image, Image> imageOperation, String operationName,
+                                         Function<Image, Image> displayOperation) {
         LOGGER.debug("Performing the {}...", operationName);
-        final Image newImage = imageOperation.apply(this.actualImage);
-        afterChanging(newImage);
+        final Image newImage = imageOperation.apply(this.actual.getOriginal());
+        afterChanging(newImage, displayOperation);
     }
 
 
     /**
      * Performs the given {@code imageOperation},
-     * using the {@link #actualImage} as first {@link Image},
+     * using the actual image as first {@link Image},
      * and opening a new {@link Image} using the {@link #openImage()} method.
-     * The result of the operation will be set a the new {@link #actualImage}.
+     * The result of the operation will be set a the new actual image.
      *
-     * @param imageOperation The two {@link Image} operation to be performed.
-     * @param operationName  Operation name (to be used for logging).
+     * @param imageOperation   The two {@link Image} operation to be performed.
+     * @param operationName    Operation name (to be used for logging).
+     * @param displayOperation A {@link Function} that takes the new {@link Image}
+     *                         and performs the operation that must be done to be displayed.
+     *                         (e.g normalization, dynamic range compression, etc.)
      */
-    private void twoImagesOperationAction(BiFunction<Image, Image, Image> imageOperation, String operationName) {
+    private void twoImagesOperationAction(BiFunction<Image, Image, Image> imageOperation, String operationName,
+                                          Function<Image, Image> displayOperation) {
         Optional.ofNullable(selectFile())
                 .map(anotherImageFile -> {
                     try {
-                        return imageFileService.openImage(anotherImageFile);
+                        return imageIOService.openImage(anotherImageFile);
                     } catch (IOException e) {
                         LOGGER.error("Could not open image file.");
                         LOGGER.debug("Error message: {}", e.getMessage());
@@ -462,41 +468,47 @@ public class HomeController {
                         return null;
                     }
                 })
-                .map(anotherImage -> imageOperation.apply(this.actualImage, anotherImage))
+                .map(imageIOService::fromImageIO)
+                .map(ImageIOContainer::getImage)
+                .map(anotherImage -> imageOperation.apply(this.actual.getOriginal(), anotherImage))
                 .ifPresent(newImage -> {
                     LOGGER.debug("Performing {}...", operationName);
-                    afterChanging(newImage);
+                    afterChanging(newImage, displayOperation);
                 });
     }
 
     /**
-     * Performs the last steps that must be done after changing the {@link #actualImage}.
+     * Performs the last steps that must be done after changing the actual image.
      *
-     * @param newImage The new {@link Image}.
+     * @param newImage         The new {@link Image}.
+     * @param displayOperation A {@link Function} that takes the new {@link Image}
+     *                         and performs the operation that must be done to be displayed.
+     *                         (e.g normalization, dynamic range compression, etc.)
      */
-    private void afterChanging(Image newImage) {
-        modify(newImage);
+    private void afterChanging(Image newImage, Function<Image, Image> displayOperation) {
+        modify(new ImagePair(newImage, displayOperation,
+                image -> imageIOService.toImageIO(this.initialImageIOContainer.buildForNewImage(image))));
         drawActual();
     }
 
     /**
-     * Modifies the actual image, setting the given {@link Image} as the actual,
+     * Modifies the actual image, setting the given {@link ImagePair} as the actual,
      * saving the ex-actual in the {@link #imageHistory} {@link Stack},
      * and clearing the {@link #undoneImages} {@link Stack}.
      *
-     * @param newImage The new actual image.
+     * @param newPair The new actual image (i.e the original-display pair).
      */
-    private void modify(Image newImage) {
-        this.imageHistory.push(this.actualImage);
+    private void modify(ImagePair newPair) {
+        this.imageHistory.push(this.actual);
         this.undoneImages.clear();
-        this.actualImage = newImage;
+        this.actual = newPair;
     }
 
     /**
      * Draws the actual image in the {@link #imageView} {@link ImageView}.
      */
     private void drawActual() {
-        drawImage(this.actualImage.getContent(), this.imageView);
+        drawImage(this.actual.getDisplayed(), this.imageView);
     }
 
     /**
@@ -506,8 +518,8 @@ public class HomeController {
         if (imageHistory.isEmpty()) {
             return;
         }
-        this.undoneImages.push(this.actualImage);
-        this.actualImage = this.imageHistory.pop();
+        this.undoneImages.push(this.actual);
+        this.actual = this.imageHistory.pop();
     }
 
     /**
@@ -517,13 +529,79 @@ public class HomeController {
         if (undoneImages.isEmpty()) {
             return;
         }
-        this.imageHistory.push(this.actualImage);
-        this.actualImage = this.undoneImages.pop();
+        this.imageHistory.push(this.actual);
+        this.actual = this.undoneImages.pop();
+    }
+
+    /**
+     * Draws the given {@link BufferedImage} into the given {@link ImageView}.
+     *
+     * @param image     The image to be drawn.
+     * @param imageView The {@link ImageView} to which the image will be drawn.
+     */
+    private void drawImage(BufferedImage image, ImageView imageView) {
+        imageView.setImage(SwingFXUtils.toFXImage(image, null));
     }
 
     // ==============================================================================
     // Helper classes
     // ==============================================================================
 
-    // ...
+    /**
+     * Bean class that holds together an {@link Image} with its {@link BufferedImage} representation.
+     */
+    private static final class ImagePair {
+
+        /**
+         * The original {@link Image} (i.e the model).
+         */
+        private final Image original;
+
+        /**
+         * The {@link BufferedImage} (i.e the displayed representation of the {@link #original} {@link Image}).
+         */
+        private final BufferedImage displayed;
+
+        /**
+         * Constructor that builds the displayed {@link BufferedImage}.
+         *
+         * @param original                The original {@link Image} (i.e the model).
+         * @param displayOperation        A {@link Function} that takes the {@code original}
+         *                                and transform it into another {@link Image} that can be displayed.
+         * @param toBufferedImageFunction A {@link Function} that takes an {@link Image}
+         *                                and transforms it into the {@link BufferedImage} representation of it.
+         */
+        private ImagePair(Image original, Function<Image, Image> displayOperation,
+                          Function<Image, BufferedImage> toBufferedImageFunction) {
+            this.original = original;
+            this.displayed = displayOperation.andThen(toBufferedImageFunction).apply(this.original);
+        }
+
+        /**
+         * Constructor that sets values.
+         *
+         * @param original  The original {@link Image} (i.e the model).
+         * @param displayed The {@link BufferedImage}
+         *                  (i.e the displayed representation of the {@code original}) {@link Image}.
+         */
+        private ImagePair(Image original, BufferedImage displayed) {
+            this.original = original;
+            this.displayed = displayed;
+        }
+
+        /**
+         * @return The original {@link Image} (i.e the model).
+         */
+        private Image getOriginal() {
+            return original;
+        }
+
+        /**
+         * @return The {@link BufferedImage}
+         * (i.e the displayed representation of the {@link #getOriginal()} {@link Image}).
+         */
+        private BufferedImage getDisplayed() {
+            return displayed;
+        }
+    }
 }
