@@ -4,20 +4,19 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * Represents a function that accepts four arguments and produces a result.
- * This is the four-arity specialization of {@link Function}.
+ * Represents a function that accepts three arguments and produces a result.
+ * This is the three-arity specialization of {@link Function}.
  * <p>
  * <p>This is a <a href="package-summary.html">functional interface</a>
- * whose functional method is {@link #apply(Object, Object, Object, Object)}.
+ * whose functional method is {@link #apply(Object, Object, Object)}.
  *
  * @param <R> the type of the first argument to the function
  * @param <S> the type of the second argument to the function
  * @param <T> the type of the third argument to the function
- * @param <U> the type of the fourth argument to the function
  * @param <V> the type of the result of the function
  */
 @FunctionalInterface
-public interface QuadFunction<R, S, T, U, V> {
+public interface TriFunction<R, S, T, V> {
 
     /**
      * Applies this function to the given arguments.
@@ -25,10 +24,9 @@ public interface QuadFunction<R, S, T, U, V> {
      * @param r the first function argument
      * @param s the second function argument
      * @param t the third function argument
-     * @param u the fourth function argument
      * @return the function result
      */
-    V apply(R r, S s, T t, U u);
+    V apply(R r, S s, T t);
 
     /**
      * Returns a composed function that first applies this function to
@@ -43,8 +41,8 @@ public interface QuadFunction<R, S, T, U, V> {
      * applies the {@code after} function
      * @throws NullPointerException if after is null
      */
-    default <W> QuadFunction<R, S, T, U, W> andThen(Function<? super V, ? extends W> after) {
+    default <W> TriFunction<R, S, T, W> andThen(Function<? super V, ? extends W> after) {
         Objects.requireNonNull(after);
-        return (r, s, t, u) -> after.apply(apply(r, s, t, u));
+        return (r, s, t) -> after.apply(apply(r, s, t));
     }
 }
