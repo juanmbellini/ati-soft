@@ -1,9 +1,6 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
-import ar.edu.itba.ati.ati_soft.interfaces.ImageIOContainer;
-import ar.edu.itba.ati.ati_soft.interfaces.ImageIOService;
-import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
-import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
+import ar.edu.itba.ati.ati_soft.interfaces.*;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
@@ -56,6 +53,11 @@ public class HomeController {
      * An {@link ImageOperationService} to perform image operations over the actual image.
      */
     private final ImageOperationService imageOperationService;
+
+    /**
+     * A {@link NoiseGenerationService} used to pollute images.
+     */
+    private final NoiseGenerationService noiseGenerationService;
 
 
     // ==============================================================================
@@ -149,9 +151,11 @@ public class HomeController {
     // ==============================================================================
 
     @Autowired
-    public HomeController(ImageIOService imageIOService, ImageOperationService imageOperationService) {
+    public HomeController(ImageIOService imageIOService, ImageOperationService imageOperationService,
+                          NoiseGenerationService noiseGenerationService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
+        this.noiseGenerationService = noiseGenerationService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -282,6 +286,34 @@ public class HomeController {
     @FXML
     public void negative() {
         oneImageOperationAction(imageOperationService::getNegative, "negative calculation", Function.identity());
+    }
+
+    @FXML
+    public void additiveGaussianNoise() {
+        getNumber("Mean value for Additive Gaussian Noise", "", "Insert the mean value", Double::parseDouble)
+                .ifPresent(mean -> getNumber("Standard Deviation value for Additive Gaussian Noise", "",
+                        "Insert the standard deviation value", Double::parseDouble)
+                        .ifPresent(stdDev -> oneImageOperationAction(image ->
+                                        noiseGenerationService.additiveGaussianNoise(image, mean, stdDev),
+                                "addition of Additive Gaussian Noise", imageOperationService::normalize)));
+    }
+
+    @FXML
+    public void multiplicativeRayleighNoise() {
+        getNumber("Scale value for Multiplicative Rayleigh Nose", "",
+                "Insert the scale value (i.e the xi value)", Double::parseDouble)
+                .ifPresent(scale -> oneImageOperationAction(image ->
+                                noiseGenerationService.multiplicativeRayleighNoise(image, scale),
+                        "addition of Multiplicative Rayleigh Noise", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void multiplicativeExponentialNoise() {
+        getNumber("Rate value for Multiplicative Exponential Nose", "",
+                "Insert the rate value (i.e the lambda value)", Double::parseDouble)
+                .ifPresent(rate -> oneImageOperationAction(image ->
+                                noiseGenerationService.multiplicativeExponentialNoise(image, rate),
+                        "addition of Multiplicative Exponential Noise", imageOperationService::normalize));
     }
 
     // ======================================
