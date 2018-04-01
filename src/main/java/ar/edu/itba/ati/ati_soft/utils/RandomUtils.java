@@ -44,7 +44,7 @@ public class RandomUtils {
     /**
      * Generates pseudorandom numbers with Rayleigh distribution.
      *
-     * @param xi The distribution's xi parameter.
+     * @param xi The distribution's scale parameter (i.e the xi value).
      * @return The generated pseudorandom number.
      */
     public static double randomRayleigh(double xi) {
