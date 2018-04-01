@@ -2,7 +2,6 @@ package ar.edu.itba.ati.ati_soft.service;
 
 import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.models.Image;
-import ar.edu.itba.ati.ati_soft.utils.QuadFunction;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -34,7 +33,7 @@ public class ImageOperationServiceImpl implements ImageOperationService {
 
     @Override
     public Image multiplyByScalar(Image image, double scalar) {
-        return createApplying(image, (x, y, b, v) -> scalar * v);
+        return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> scalar * v);
     }
 
     @Override
@@ -43,19 +42,19 @@ public class ImageOperationServiceImpl implements ImageOperationService {
         final double[] constants = IntStream.range(0, image.getBands())
                 .mapToDouble(i -> 255.0 / Math.log10(1 + maximums[i]))
                 .toArray();
-        return createApplying(image, (x, y, b, v) -> constants[b] * Math.log10(1 + v));
+        return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> constants[b] * Math.log10(1 + v));
     }
 
     @Override
     public Image gammaPower(Image image, double gamma) {
         final double constant = Math.pow(0xFF, 1 - gamma);
-        return createApplying(image, (x, y, b, v) -> constant * Math.pow(v, gamma));
+        return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> constant * Math.pow(v, gamma));
     }
 
     @Override
     public Image getNegative(Image image) {
         // Image must be normalized as it can have pixels bigger than 0xFF
-        return createApplying(normalize(image), (x, y, i, value) -> 0xFF - value);
+        return ImageManipulationHelper.createApplying(normalize(image), (x, y, i, value) -> 0xFF - value);
     }
 
     @Override
@@ -65,7 +64,7 @@ public class ImageOperationServiceImpl implements ImageOperationService {
         final Double[] maximums = container.getMaximums();
         final double[] factors = IntStream.range(0, original.getBands())
                 .mapToDouble(i -> 255 / (maximums[i] - minimums[i])).toArray();
-        return createApplying(original, (x, y, i, value) -> (value - minimums[i]) * factors[i]);
+        return ImageManipulationHelper.createApplying(original, (x, y, i, value) -> (value - minimums[i]) * factors[i]);
     }
 
 
@@ -90,38 +89,7 @@ public class ImageOperationServiceImpl implements ImageOperationService {
         if (first.getWidth() != second.getWidth() || first.getHeight() != second.getHeight()) {
             throw new IllegalArgumentException("Both images must be the same size to be summed.");
         }
-        return createApplying(first, (x, y, b, v) -> operation.apply(v, second.getSample(x, y, b)));
-    }
-
-    /**
-     * Creates a new {@link Image} using as base the given {@code original} {@link Image},
-     * applying the given {@code changer} {@link QuadFunction} to each sample.
-     *
-     * @param original The base {@link Image}.
-     * @param changer  The {@link QuadFunction} to apply to each pixel,
-     *                 being the first element, the row of the pixel being changed,
-     *                 the second element, the column of the pixel being changed,
-     *                 the third element, the band being changed,
-     *                 and the fourth element, the original value in the row, column and band.
-     *                 The function must return the changed value.
-     * @return The new {@link Image}.
-     */
-    private static Image createApplying(Image original,
-                                        QuadFunction<Integer, Integer, Integer, Double, Double> changer) {
-        final int width = original.getWidth();
-        final int height = original.getHeight();
-        final int bands = original.getBands();
-        final Image newImage = Image.trash(width, height, bands);
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                for (int b = 0; b < bands; b++) {
-                    final double value = original.getSample(x, y, b);
-                    final double newValue = changer.apply(x, y, b, value);
-                    newImage.setSample(x, y, b, newValue);
-                }
-            }
-        }
-        return newImage;
+        return ImageManipulationHelper.createApplying(first, (x, y, b, v) -> operation.apply(v, second.getSample(x, y, b)));
     }
 
 
