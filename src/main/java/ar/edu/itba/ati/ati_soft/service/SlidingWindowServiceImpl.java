@@ -3,9 +3,13 @@ package ar.edu.itba.ati.ati_soft.service;
 import ar.edu.itba.ati.ati_soft.interfaces.SlidingWindowService;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
  * Concrete implementation of {@link SlidingWindowService}.
@@ -28,6 +32,32 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                 array -> {
                     final long arrayAmount = Arrays.stream(array).flatMap(Arrays::stream).count();
                     return Arrays.stream(array).flatMap(Arrays::stream)
+                            .mapToDouble(i -> i)
+                            .sorted()
+                            .skip((arrayAmount - 1) / 2)
+                            .limit(2 - arrayAmount % 2)
+                            .average()
+                            .orElseThrow(RuntimeException::new);
+                });
+    }
+
+    @Override
+    public Image applyWeightMedianFilter(Image image, Integer[][] weights) {
+        Assert.notNull(weights, "The weights array must not be null");
+        Assert.notEmpty(weights, "The weights array must not be empty");
+        final int length = weights.length;
+        Assert.isTrue(Arrays.stream(weights)
+                .filter(internalArray -> internalArray == null || internalArray.length != length)
+                .count() == 0, "The weights array must be square");
+
+        return applyFilter(image, length,
+                array -> {
+                    final int arrayAmount = Arrays.stream(weights).flatMap(Arrays::stream).mapToInt(i -> i).sum();
+                    return IntStream.range(0, array.length)
+                            .mapToObj(x -> IntStream.range(0, array[x].length)
+                                    .mapToObj(y -> Collections.nCopies(weights[x][y], array[x][y]))
+                                    .flatMap(Collection::stream))
+                            .flatMap(Function.identity())
                             .mapToDouble(i -> i)
                             .sorted()
                             .skip((arrayAmount - 1) / 2)

@@ -24,4 +24,13 @@ public interface SlidingWindowService {
      * @return A new {@link Image} with the filter applied.
      */
     Image applyMedianFilter(Image image, int windowLength);
+
+    /**
+     * Applies a weight median filter to the given {@link Image}, using a window with the given {@code weights}.
+     *
+     * @param image   The {@link Image} to which the filter will be applied.
+     * @param weights A two-dimensional array containing the weights.
+     * @return A new {@link Image} with the filter applied.
+     */
+    Image applyWeightMedianFilter(Image image, Integer[][] weights);
 }

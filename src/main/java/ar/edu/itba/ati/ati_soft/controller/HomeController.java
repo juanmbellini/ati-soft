@@ -15,6 +15,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.apache.commons.collections4.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Stack;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -342,6 +341,19 @@ public class HomeController {
                         "Median Filtering", imageOperationService::normalize));
     }
 
+    @FXML
+    public void weightedMedianFilter() {
+        getNumberArray("Weights mask for weighted median filter",
+                "Insert mask by separating values with commas. Every three values a row will be created. " +
+                        "Insert just 9 values", "Insert the weight mask", Integer::parseInt, 9)
+                .map(list -> ListUtils.partition(list, 3))
+                .map(lists ->
+                        lists.stream().map(list -> list.toArray(new Integer[list.size()])).toArray(Integer[][]::new))
+                .ifPresent(filter ->
+                        oneImageOperationAction(image -> slidingWindowService.applyWeightMedianFilter(image, filter),
+                                "Weighted Median Filtering", imageOperationService::normalize));
+    }
+
     // ======================================
     // View actions
     // ======================================
@@ -466,6 +478,44 @@ public class HomeController {
         textInputDialog.setHeaderText(header);
         textInputDialog.setTitle(title);
         return textInputDialog.showAndWait().map(value -> convertToNumber(value, converter));
+    }
+
+    /**
+     * Show ups a {@link javafx.scene.control.Dialog} that expects a list of numeric value to be inserted.
+     * The transformation is performed using a {@link Function} that takes a {@link String}
+     * and converts it into a {@link Number}.
+     * In case the inserted value is not a number that can be created with the {@code converter},
+     * an {@link javafx.scene.control.Alert.AlertType#ERROR} {@link Alert} is showed up.
+     * Also, if the amount of elements inserted is not the {@code requiredAmount}, an error message is displayed.
+     *
+     * @param header         The message to be displayed in the {@link javafx.scene.control.Dialog} header.
+     * @param defaultValue   The default value for the {@link javafx.scene.control.Dialog}
+     *                       (i.e what appears in the text field).
+     * @param converter      A {@link Function} to be used to create the {@link Number}.
+     * @param requiredAmount The required amount of elements that must be inserted.
+     * @param <N>            The concrete subtype of {@link Number} (e.g {@link Integer} or {@link Double}).
+     * @return An {@link Optional} of {@code N} holding the inserted value,
+     * or empty if no value, no number was inserted, or not the {@code requiredAmount} of values were inserted.
+     */
+    private <N extends Number> Optional<List<N>> getNumberArray(String title, String header, String defaultValue,
+                                                                Function<String, N> converter, int requiredAmount) {
+        final TextInputDialog textInputDialog = new TextInputDialog(defaultValue);
+        textInputDialog.setHeaderText(header);
+        textInputDialog.setTitle(title);
+        final List<N> values = textInputDialog.showAndWait()
+                .map(str -> str.split(",", -1))
+                .map(Arrays::stream)
+                .map(stream -> stream.map(value -> convertToNumber(value, converter)).collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+        if (values.size() != requiredAmount) {
+            final Alert alert = new Alert(Alert.AlertType.ERROR,
+                    "The amount of inserted values is not the required amount. "
+                            + requiredAmount + " values must be inserted");
+            alert.setHeaderText("");
+            alert.show();
+            return Optional.empty();
+        }
+        return Optional.of(values);
     }
 
     /**
