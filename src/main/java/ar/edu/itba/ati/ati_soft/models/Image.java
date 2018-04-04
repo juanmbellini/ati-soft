@@ -76,7 +76,7 @@ public class Image {
      */
     public Double[] getPixel(int x, int y) {
         Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
-        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
+        Assert.isTrue(y >= 0 && y < height, "Usage 'y' value out of range.");
         Double[] pixel = pixels[x][y];
         return Arrays.copyOf(pixel, pixel.length); // Copy value to avoid changing state from the outside.
     }
@@ -106,7 +106,7 @@ public class Image {
      */
     public void setPixel(int x, int y, Double[] pixel) throws IllegalArgumentException {
         Assert.isTrue(x >= 0 && x < width, "Usage 'x' value out of range.");
-        Assert.isTrue(y >= 0 && y < width, "Usage 'y' value out of range.");
+        Assert.isTrue(y >= 0 && y < height, "Usage 'y' value out of range.");
         Assert.notNull(pixel, "The pixel must not be null.");
         Assert.notEmpty(pixel, "The pixel must not be empty.");
         Assert.isTrue(pixel.length == bands, "The pixel must have " + bands + " bands.");
@@ -126,6 +126,42 @@ public class Image {
         Assert.isTrue(y >= 0 && y < height, "Usage 'y' value out of range.");
         Assert.isTrue(band >= 0 && band < bands, "Usage a band out of range.");
         this.pixels[x][y][band] = sample;
+    }
+
+
+    /**
+     * Returns a sub-raster of this image.
+     *
+     * @param xInitial  The starting 'x' point of the image where the sub-raster will be taken.
+     * @param yInitial  The starting 'y' point of the image where the sub-raster will be taken.
+     * @param newWidth  The sub-raster width.
+     * @param newHeight The sub-raster height.
+     * @return A {@code Double[][][]} representing the sub-raster
+     * @apiNote The resulting array is totally independent from this image.
+     * Modifying the result value won't affect this image.
+     */
+    public Double[][][] getSubRaster(int xInitial, int yInitial, int newWidth, int newHeight) {
+        Assert.isTrue(xInitial >= 0 && xInitial + newWidth <= this.width
+                && yInitial >= 0 && yInitial + newHeight <= this.height, "Out of range arguments");
+        return Arrays.stream(pixels)
+                .skip(xInitial)
+                .limit(newWidth)
+                .map(array -> Arrays.stream(array)
+                        .skip(yInitial)
+                        .limit(newHeight)
+                        .map(pixel -> Arrays.copyOf(pixel, pixel.length)) // Copy pixel to avoid changing from outside
+                        .toArray(Double[][]::new))
+                .toArray(Double[][][]::new);
+    }
+
+
+    /**
+     * Returns a copy of this image.
+     *
+     * @return A new totally independent instance of this image.
+     */
+    public Image copy() {
+        return new Image(getSubRaster(0, 0, width, height));
     }
 
     /**

@@ -59,6 +59,11 @@ public class HomeController {
      */
     private final NoiseGenerationService noiseGenerationService;
 
+    /**
+     * A {@link SlidingWindowService} used to apply filters to images.
+     */
+    private final SlidingWindowService slidingWindowService;
+
 
     // ==============================================================================
     // UI Components
@@ -151,11 +156,14 @@ public class HomeController {
     // ==============================================================================
 
     @Autowired
-    public HomeController(ImageIOService imageIOService, ImageOperationService imageOperationService,
-                          NoiseGenerationService noiseGenerationService) {
+    public HomeController(ImageIOService imageIOService,
+                          ImageOperationService imageOperationService,
+                          NoiseGenerationService noiseGenerationService,
+                          SlidingWindowService slidingWindowService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
         this.noiseGenerationService = noiseGenerationService;
+        this.slidingWindowService = slidingWindowService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -314,6 +322,15 @@ public class HomeController {
                 .ifPresent(rate -> oneImageOperationAction(image ->
                                 noiseGenerationService.multiplicativeExponentialNoise(image, rate),
                         "addition of Multiplicative Exponential Noise", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void meanFilter() {
+        getNumber("Window length for Mean Filter", "",
+                "Insert the window's length", Integer::parseInt)
+                .ifPresent(length -> oneImageOperationAction(image ->
+                                slidingWindowService.applyMeanFilter(image, length),
+                        "Mean Filtering", imageOperationService::normalize));
     }
 
     // ======================================
