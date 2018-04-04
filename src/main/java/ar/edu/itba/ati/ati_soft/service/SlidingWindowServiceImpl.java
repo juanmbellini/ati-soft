@@ -22,6 +22,20 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                         .orElseThrow(RuntimeException::new));
     }
 
+    @Override
+    public Image applyMedianFilter(Image image, int windowLength) {
+        return applyFilter(image, windowLength,
+                array -> {
+                    final long arrayAmount = Arrays.stream(array).flatMap(Arrays::stream).count();
+                    return Arrays.stream(array).flatMap(Arrays::stream)
+                            .mapToDouble(i -> i)
+                            .sorted()
+                            .skip((arrayAmount - 1) / 2)
+                            .limit(2 - arrayAmount % 2)
+                            .average()
+                            .orElseThrow(RuntimeException::new);
+                });
+    }
 
     /**
      * Applies a filter to the given {@link Image}, using a mask with the given {@code windowLength},

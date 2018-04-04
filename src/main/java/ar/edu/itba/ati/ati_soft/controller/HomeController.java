@@ -333,6 +333,15 @@ public class HomeController {
                         "Mean Filtering", imageOperationService::normalize));
     }
 
+    @FXML
+    public void medianFilter() {
+        getNumber("Window length for Median Filter", "",
+                "Insert the window's length", Integer::parseInt)
+                .ifPresent(length -> oneImageOperationAction(image ->
+                                slidingWindowService.applyMedianFilter(image, length),
+                        "Median Filtering", imageOperationService::normalize));
+    }
+
     // ======================================
     // View actions
     // ======================================

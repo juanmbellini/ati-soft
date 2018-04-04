@@ -50,6 +50,7 @@
                           onAction="#multiplicativeExponentialNoise"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Apply mean filter..." onAction="#meanFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply median filter..." onAction="#medianFilter"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
