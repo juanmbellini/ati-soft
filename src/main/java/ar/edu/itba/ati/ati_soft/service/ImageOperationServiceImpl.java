@@ -58,6 +58,13 @@ public class ImageOperationServiceImpl implements ImageOperationService {
     }
 
     @Override
+    public Image threshold(Image image, int u) {
+        // Image must be normalized as it can have pixels bigger than 0xFF
+        return ImageManipulationHelper.createApplying(normalize(image),
+                (x, y, i, value) -> (double) (value <= u ? 0x0 : 0xFF));
+    }
+
+    @Override
     public Image normalize(Image original) {
         final MinAndMaxContainer container = new MinAndMaxContainer(original).initialize();
         final Double[] minimums = container.getMinimums();

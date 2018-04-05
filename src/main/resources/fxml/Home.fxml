@@ -41,6 +41,7 @@
                 <MenuItem mnemonicParsing="false" text="Gamma power..." onAction="#gammaPower"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Negative" onAction="#negative"/>
+                <MenuItem mnemonicParsing="false" text="Threshold..." onAction="#threshold"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Add Additive Gaussian Noise..."
                           onAction="#additiveGaussianNoise"/>
