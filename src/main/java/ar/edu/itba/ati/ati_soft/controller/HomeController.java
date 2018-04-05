@@ -296,6 +296,13 @@ public class HomeController {
     }
 
     @FXML
+    public void threshold() {
+        getNumber("Threshold value", "", "Insert the threshold", Integer::parseInt)
+                .ifPresent(u -> oneImageOperationAction(image -> imageOperationService.threshold(image, u),
+                        "addition of Additive Gaussian Noise", imageOperationService::normalize));
+    }
+
+    @FXML
     public void additiveGaussianNoise() {
         getNumber("Mean value for Additive Gaussian Noise", "", "Insert the mean value", Double::parseDouble)
                 .ifPresent(mean -> getNumber("Standard Deviation value for Additive Gaussian Noise", "",
