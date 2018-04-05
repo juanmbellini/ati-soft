@@ -354,6 +354,15 @@ public class HomeController {
                                 "Weighted Median Filtering", imageOperationService::normalize));
     }
 
+    @FXML
+    public void gaussianFilter() {
+        getNumber("Standard deviation for Median Filter", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(standardDeviation -> oneImageOperationAction(image ->
+                                slidingWindowService.applyGaussianFilter(image, standardDeviation),
+                        "Gaussian Filtering", imageOperationService::normalize));
+    }
+
     // ======================================
     // View actions
     // ======================================

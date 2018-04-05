@@ -55,6 +55,8 @@
                           onAction="#medianFilter"/>
                 <MenuItem mnemonicParsing="false" text="Apply weighted median filter..."
                           onAction="#weightedMedianFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
+                          onAction="#gaussianFilter"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>

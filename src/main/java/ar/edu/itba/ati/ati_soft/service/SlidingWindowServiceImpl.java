@@ -67,6 +67,36 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                 });
     }
 
+    @Override
+    public Image applyGaussianFilter(Image image, double standardDeviation) {
+        Assert.isTrue(standardDeviation > 0, "The standard deviation must be positive");
+        final int margin = (int) (standardDeviation * 2);
+        // First calculate values using the Gaussian function
+        final double variance = standardDeviation * standardDeviation; // Avoid recalculating this
+        final double factor = 1 / (2 * Math.PI * variance); // Avoid recalculating this
+        final Double[][] unfinishedMask = IntStream.range(-margin, margin + 1)
+                .mapToObj(x -> IntStream.range(-margin, margin + 1)
+                        .mapToObj(y -> factor * Math.exp(-(x * x + y * y) / variance))
+                        .toArray(Double[]::new))
+                .toArray(Double[][]::new);
+        // Then, calculate the sum of values
+        final double sum = Arrays.stream(unfinishedMask)
+                .flatMap(Arrays::stream)
+                .reduce(0.0, (o1, o2) -> o1 + o2);
+        // Finally, produce the mask by dividing each value with the calculated sum
+        final Double[][] mask = Arrays.stream(unfinishedMask)
+                .map(internal -> Arrays.stream(internal)
+                        .map(value -> value / sum)
+                        .toArray(Double[]::new))
+                .toArray(Double[][]::new);
+
+        return applyFilter(image, mask.length,
+                array -> IntStream.range(0, array.length)
+                        .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
+                        .flatMap(Function.identity())
+                        .reduce(0.0, (o1, o2) -> o1 + o2));
+    }
+
     /**
      * Applies a filter to the given {@link Image}, using a mask with the given {@code windowLength},
      * applying the given {@code filterFunction} to calculate the new pixel values.

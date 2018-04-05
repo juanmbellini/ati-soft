@@ -33,4 +33,14 @@ public interface SlidingWindowService {
      * @return A new {@link Image} with the filter applied.
      */
     Image applyWeightMedianFilter(Image image, Integer[][] weights);
+
+    /**
+     * Applies a gaussian filter to the given {@link Image}, using the given {@code standardDeviation}.
+     *
+     * @param image             The {@link Image} to which the filter will be applied.
+     * @param standardDeviation The standard deviation (i.e the sigma param) for the Gaussian function.
+     * @return A new {@link Image} with the filter applied.
+     * @
+     */
+    Image applyGaussianFilter(Image image, double standardDeviation);
 }
