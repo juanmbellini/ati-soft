@@ -363,6 +363,15 @@ public class HomeController {
                         "Gaussian Filtering", imageOperationService::normalize));
     }
 
+    @FXML
+    public void highPassFilter() {
+        getNumber("Window length for High-Pass Filter", "",
+                "Insert the window's length", Integer::parseInt)
+                .ifPresent(length -> oneImageOperationAction(image ->
+                                slidingWindowService.applyHighPassFilter(image, length),
+                        "High-Pass Filtering", imageOperationService::normalize));
+    }
+
     // ======================================
     // View actions
     // ======================================

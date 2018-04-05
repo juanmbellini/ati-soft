@@ -43,4 +43,13 @@ public interface SlidingWindowService {
      * @
      */
     Image applyGaussianFilter(Image image, double standardDeviation);
+
+    /**
+     * Applies a high pass filter to the given {@link Image}, using a window with the given {@code windowLength}.
+     *
+     * @param image        The {@link Image} to which the filter will be applied.
+     * @param windowLength The length of the window.
+     * @return A new {@link Image} with the filter applied.
+     */
+    Image applyHighPassFilter(Image image, int windowLength);
 }

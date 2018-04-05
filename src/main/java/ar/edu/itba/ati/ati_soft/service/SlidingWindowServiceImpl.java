@@ -97,6 +97,26 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                         .reduce(0.0, (o1, o2) -> o1 + o2));
     }
 
+    @Override
+    public Image applyHighPassFilter(Image image, int windowLength) {
+        Assert.isTrue(windowLength > 0, "The window length must be positive");
+        Assert.isTrue(windowLength % 2 == 1, "The window length must not be even");
+        final int size = windowLength * windowLength;
+        final Double[][] mask = IntStream.range(0, windowLength)
+                .mapToObj(x -> IntStream.range(0, windowLength)
+                        .mapToObj(y -> -1.0 / size)
+                        .toArray(Double[]::new))
+                .toArray(Double[][]::new);
+        final int center = windowLength / 2;
+        mask[center][center] *= 1 - size;
+
+        return applyFilter(image, mask.length,
+                array -> IntStream.range(0, array.length)
+                        .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
+                        .flatMap(Function.identity())
+                        .reduce(0.0, (o1, o2) -> o1 + o2));
+    }
+
     /**
      * Applies a filter to the given {@link Image}, using a mask with the given {@code windowLength},
      * applying the given {@code filterFunction} to calculate the new pixel values.
