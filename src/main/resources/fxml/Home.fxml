@@ -48,6 +48,17 @@
                           onAction="#multiplicativeRayleighNoise"/>
                 <MenuItem mnemonicParsing="false" text="Add Multiplicative Exponential Noise..."
                           onAction="#multiplicativeExponentialNoise"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Apply mean filter..."
+                          onAction="#meanFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply median filter..."
+                          onAction="#medianFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply weighted median filter..."
+                          onAction="#weightedMedianFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
+                          onAction="#gaussianFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply high-pass filter..."
+                          onAction="#highPassFilter"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
