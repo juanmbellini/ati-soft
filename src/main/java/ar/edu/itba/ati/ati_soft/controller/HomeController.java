@@ -331,6 +331,17 @@ public class HomeController {
     }
 
     @FXML
+    public void saltAndPepperNoise() {
+        getNumber("Lower limit value (p0) for Salt and Pepper Noise", "",
+                "Insert the p0 value", Double::parseDouble)
+                .ifPresent(p0 -> getNumber("Upper limit value (p1) for Salt and Pepper Noise", "",
+                        "Insert the p1 value", Double::parseDouble)
+                        .ifPresent(p1 -> oneImageOperationAction(image ->
+                                        noiseGenerationService.saltAndPepperNoise(image, p0, p1),
+                                "addition of Salt and Pepper Noise", imageOperationService::normalize)));
+    }
+
+    @FXML
     public void meanFilter() {
         getNumber("Window length for Mean Filter", "",
                 "Insert the window's length", Integer::parseInt)

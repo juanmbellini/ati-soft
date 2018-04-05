@@ -2,10 +2,9 @@ package ar.edu.itba.ati.ati_soft.service;
 
 import ar.edu.itba.ati.ati_soft.interfaces.ImageOperationService;
 import ar.edu.itba.ati.ati_soft.models.Image;
+import ar.edu.itba.ati.ati_soft.service.ImageManipulationHelper.MinAndMaxContainer;
 import org.springframework.stereotype.Service;
-import org.springframework.util.Assert;
 
-import java.util.Arrays;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 
@@ -97,93 +96,5 @@ public class ImageOperationServiceImpl implements ImageOperationService {
             throw new IllegalArgumentException("Both images must be the same size to be summed.");
         }
         return ImageManipulationHelper.createApplying(first, (x, y, b, v) -> operation.apply(v, second.getSample(x, y, b)));
-    }
-
-
-    // ================================================================================================================
-    // Helper classes
-    // ================================================================================================================
-
-    /**
-     * Container class holding minimums and maximums values for a given {@link Image}.
-     */
-    private final static class MinAndMaxContainer {
-
-        /**
-         * An array holding the min. values.
-         */
-        private final Double[] minimums;
-
-        /**
-         * An array holding the max. values.
-         */
-        private final Double[] maximums;
-
-        /**
-         * The {@link Image} to which min. and max. values will be calculated, stored for lazy initialization.
-         */
-        private final Image image;
-
-        /**
-         * Constructor.
-         *
-         * @param image The {@link Image} to which min. and max. values will be calculated.
-         */
-        private MinAndMaxContainer(Image image) {
-            this.minimums = image.getPixel(0, 0);
-            this.maximums = image.getPixel(0, 0);
-            this.image = image;
-        }
-
-        /**
-         * Initializes this container.
-         *
-         * @return {@code this}, for method chaining.
-         */
-        private MinAndMaxContainer initialize() {
-            populate(image, minimums, maximums);
-            return this;
-        }
-
-        /**
-         * @return The array containing the min. values.
-         */
-        private Double[] getMinimums() {
-            return Arrays.copyOf(minimums, minimums.length);
-        }
-
-        /**
-         * @return The array containing the max. values.
-         */
-        private Double[] getMaximums() {
-            return Arrays.copyOf(maximums, maximums.length);
-        }
-
-        /**
-         * Populates the given {@code minimums} and {@code maximums} arrays
-         * with the minimums and maximums values for each band.
-         *
-         * @param image    The {@link Image} to which the calculation will be performed.
-         * @param minimums An array to which the minimum value for each band will be saved.
-         * @param maximums An array to which the maximum value for each band will be saved.
-         * @throws IllegalArgumentException If any of the arrays are null, or if both arrays don'thave the same length.
-         */
-        private void populate(Image image, final Double[] minimums, final Double[] maximums)
-                throws IllegalArgumentException {
-            Assert.notNull(minimums, "The minimums array must not be null");
-            Assert.notNull(maximums, "The maximums array must not be null");
-            if (minimums.length != maximums.length) {
-                throw new IllegalArgumentException("Both minimums and maximums array must have the same length");
-            }
-            for (int x = 0; x < image.getWidth(); x++) {
-                for (int y = 0; y < image.getHeight(); y++) {
-                    for (int i = 0; i < image.getBands(); i++) {
-                        final double value = image.getSample(x, y, i);
-                        maximums[i] = maximums[i] > value ? maximums[i] : value;
-                        minimums[i] = minimums[i] < value ? minimums[i] : value;
-                    }
-                }
-            }
-        }
     }
 }
