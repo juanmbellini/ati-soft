@@ -38,4 +38,14 @@ public interface NoiseGenerationService {
      * @return A new {@link Image} instance with Multiplicative Exponential noise added to it.
      */
     Image multiplicativeExponentialNoise(Image image, double rate);
+
+    /**
+     * Adds Salt and Pepper noise to the given {@link Image}.
+     *
+     * @param image The {@link Image} to pollute.
+     * @param p0    The p0 value.
+     * @param p1    The p1 value.
+     * @return A new {@link Image} instance with Salt and Pepper noise added to it.
+     */
+    Image saltAndPepperNoise(Image image, double p0, double p1);
 }

@@ -49,6 +49,8 @@
                           onAction="#multiplicativeRayleighNoise"/>
                 <MenuItem mnemonicParsing="false" text="Add Multiplicative Exponential Noise..."
                           onAction="#multiplicativeExponentialNoise"/>
+                <MenuItem mnemonicParsing="false" text="Add Salt and Pepper Noise..."
+                          onAction="#saltAndPepperNoise"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Apply mean filter..."
                           onAction="#meanFilter"/>
