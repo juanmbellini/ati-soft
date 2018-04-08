@@ -1,18 +1,26 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
 import ar.edu.itba.ati.ati_soft.interfaces.*;
+import ar.edu.itba.ati.ati_soft.models.Histogram;
 import ar.edu.itba.ati.ati_soft.models.Image;
+import ar.edu.itba.ati.ati_soft.utils.ToSeriesCollector;
 import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.apache.commons.collections4.ListUtils;
@@ -27,6 +35,7 @@ import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Controller class for the main view.
@@ -62,6 +71,11 @@ public class HomeController {
      * A {@link SlidingWindowService} used to apply filters to images.
      */
     private final SlidingWindowService slidingWindowService;
+
+    /**
+     * A {@link HistogramService} used to calculate image histograms.
+     */
+    private final HistogramService histogramService;
 
 
     // ==============================================================================
@@ -158,11 +172,13 @@ public class HomeController {
     public HomeController(ImageIOService imageIOService,
                           ImageOperationService imageOperationService,
                           NoiseGenerationService noiseGenerationService,
-                          SlidingWindowService slidingWindowService) {
+                          SlidingWindowService slidingWindowService,
+                          HistogramService histogramService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
         this.noiseGenerationService = noiseGenerationService;
         this.slidingWindowService = slidingWindowService;
+        this.histogramService = histogramService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -409,6 +425,14 @@ public class HomeController {
         originalImageView.fitWidthProperty().bind(stage.widthProperty());
         originalImageView.fitHeightProperty().bind(stage.heightProperty());
         stage.show();
+    }
+
+    @FXML
+    public void showHistograms() {
+        final Map<Integer, Histogram> histograms = histogramService.getHistograms(this.actual.getOriginal());
+        for (Map.Entry<Integer, Histogram> entry : histograms.entrySet()) {
+            showHistogram(entry.getValue(), "Histogram for  band " + entry.getKey());
+        }
     }
 
 
@@ -693,6 +717,41 @@ public class HomeController {
      */
     private void drawImage(BufferedImage image, ImageView imageView) {
         imageView.setImage(SwingFXUtils.toFXImage(image, null));
+    }
+
+
+    /**
+     * Shows the given histogram, displaying the given {@code seriesName}.
+     *
+     * @param histogram  The {@link Histogram} to be displayed.
+     * @param seriesName The name for the series in the displayed chart.
+     */
+    private static void showHistogram(Histogram histogram, String seriesName) {
+        // Generate chart data
+        final int min = histogram.minCategory();
+        final int max = histogram.maxCategory();
+        final XYChart.Series<String, Number> series = IntStream.range(min, max + 1)
+                .mapToObj(i -> new XYChart.Data<String, Number>(Integer.toString(i), histogram.getFrequency(i)))
+                .collect(new ToSeriesCollector<>());
+        series.setName(seriesName);
+        // Generate chart
+        final CategoryAxis xAxis = new CategoryAxis();
+        final NumberAxis yAxis = new NumberAxis();
+        final BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
+        barChart.setCategoryGap(0);
+        barChart.setBarGap(0);
+        xAxis.setLabel("Value");
+        yAxis.setLabel("Frequency");
+        barChart.getData().addAll(Collections.singleton(series));
+        // Create window
+        final VBox vBox = new VBox();
+        vBox.getChildren().addAll(barChart);
+        StackPane root = new StackPane();
+        root.getChildren().add(vBox);
+        Scene scene = new Scene(root, 800, 450);
+        final Stage stage = new Stage();
+        stage.setScene(scene);
+        stage.show();
     }
 
     // ==============================================================================
