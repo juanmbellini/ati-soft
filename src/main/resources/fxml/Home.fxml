@@ -65,6 +65,8 @@
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Show histograms" onAction="#showHistograms"/>
             </Menu>
             <Menu mnemonicParsing="false" text="Help">
                 <MenuItem mnemonicParsing="false" text="About"/>
