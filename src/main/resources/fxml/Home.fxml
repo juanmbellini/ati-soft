@@ -13,8 +13,12 @@
     <top>
         <MenuBar BorderPane.alignment="CENTER">
             <Menu mnemonicParsing="false" text="File">
-                <MenuItem mnemonicParsing="false" text="New"
-                          accelerator="Shortcut+N"/>
+                <Menu mnemonicParsing="false" text="New">
+                    <items>
+                        <MenuItem mnemonicParsing="false" text="Homogeneous image... "
+                                  onAction="#newHomogeneousImage" accelerator="Shortcut+N"/>
+                    </items>
+                </Menu>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Open"
                           onAction="#openImage" accelerator="Shortcut+O"/>
