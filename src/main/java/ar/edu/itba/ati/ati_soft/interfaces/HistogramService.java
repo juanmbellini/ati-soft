@@ -19,10 +19,10 @@ public interface HistogramService {
     Map<Integer, Histogram> getHistograms(Image image);
 
     /**
-     * Performs the {@link Histogram} equalization.
+     * Calculates the cumulative distribution {@link Histogram}.
      *
-     * @param histogram The {@link Histogram} to be equalized.
-     * @return A new {@link Histogram} instance, which is the equalized version of the given {@code histogram}.
+     * @param histogram The base {@link Histogram}.
+     * @return A new {@link Histogram} instance, which is the contains the cumulative distribution of the given one.
      */
     Histogram getCumulativeDistributionHistogram(Histogram histogram);
 
