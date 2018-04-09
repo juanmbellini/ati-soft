@@ -211,6 +211,27 @@ public class HomeController {
     // File actions
     // ======================================
 
+    @FXML
+    public void newHomogeneousImage() {
+        getNumber("Homogeneous image creation", "Insert the image width",
+                "Insert the image width", Integer::parseInt)
+                .ifPresent(width -> getNumber("Homogeneous image creation", "Insert the image height",
+                        "Insert the image height", Integer::parseInt)
+                        .ifPresent(height ->
+                                getNumber("Homogeneous image creation",
+                                        "Insert the amount of bands (1 for gray, 3 for RGB)",
+                                        "Insert the amount of bands", Integer::parseInt)
+                                        .ifPresent(bands -> getNumber("Homogeneous image creation",
+                                                "Insert the pixels intensity",
+                                                "Insert the pixels intensity", Integer::parseInt)
+                                                .ifPresent(value -> {
+                                                    final Image image = Image.homogeneous(width, height, bands, value);
+                                                    final BufferedImage buffered = imageIOService
+                                                            .toImageIO(ImageIOContainer.buildForSyntheticImage(image));
+                                                    setUp(buffered, null);
+                                                }))));
+    }
+
     /**
      * Closes the application.
      */
@@ -233,10 +254,25 @@ public class HomeController {
     public void saveImage() {
         LOGGER.debug("Saving image...");
         validateSave();
+        final File file = Optional.ofNullable(this.openedImageFile)
+                .orElseGet(() -> {
+                    // First save...
+                    final FileChooser fileChooser = new FileChooser();
+                    fileChooser.setTitle("Save...");
+                    fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+                    final int bands = actual.original.getBands();
+                    final String name = bands == 1 ? ".pgm" : bands == 3 ? ".ppm" : "";
+                    fileChooser.setInitialFileName(name);
+                    return fileChooser.showSaveDialog(root.getScene().getWindow());
+                });
+        // If after the optional stuff the file continues to be null, then finish
+        if (file == null) {
+            return;
+        }
         if (actual.getDisplayed() == lastSaved.getDisplayed()) {
             LOGGER.warn("No changes has been made to image.");
         }
-        saveImage(openedImageFile);
+        saveImage(file);
     }
 
     @FXML
@@ -465,7 +501,7 @@ public class HomeController {
     private void openImage(File imageFile) {
         try {
             final BufferedImage image = imageIOService.openImage(imageFile);
-            afterOpeningImage(image, imageFile);
+            setUp(image, imageFile);
         } catch (UnsupportedImageFileException e) {
             LOGGER.debug("File is not an image");
         } catch (IOException e) {
@@ -479,7 +515,7 @@ public class HomeController {
      * @param image The opened {@link Image}.
      * @param file  The {@link File} from where the image was opened.
      */
-    private void afterOpeningImage(BufferedImage image, File file) {
+    private void setUp(BufferedImage image, File file) {
         this.initialDisplayed = image;
         this.initialImageIOContainer = imageIOService.fromImageIO(image);
         this.actual = new ImagePair(this.initialImageIOContainer.getImage(), image);
