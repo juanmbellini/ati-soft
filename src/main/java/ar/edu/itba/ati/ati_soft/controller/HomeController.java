@@ -356,7 +356,7 @@ public class HomeController {
     public void threshold() {
         getNumber("Threshold value", "", "Insert the threshold", Integer::parseInt)
                 .ifPresent(u -> oneImageOperationAction(image -> imageOperationService.threshold(image, u),
-                        "addition of Additive Gaussian Noise", imageOperationService::normalize));
+                        "threshold function", imageOperationService::normalize));
     }
 
     @FXML
