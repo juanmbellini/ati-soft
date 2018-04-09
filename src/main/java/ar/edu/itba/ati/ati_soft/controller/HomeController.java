@@ -307,6 +307,11 @@ public class HomeController {
     }
 
     @FXML
+    public void normalize() {
+        oneImageOperationAction(imageOperationService::normalize, "normalization", Function.identity());
+    }
+
+    @FXML
     public void negative() {
         oneImageOperationAction(imageOperationService::getNegative, "negative calculation", Function.identity());
     }
@@ -316,6 +321,12 @@ public class HomeController {
         getNumber("Threshold value", "", "Insert the threshold", Integer::parseInt)
                 .ifPresent(u -> oneImageOperationAction(image -> imageOperationService.threshold(image, u),
                         "addition of Additive Gaussian Noise", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void equalize() {
+        oneImageOperationAction(histogramService::equalize, "image equalization",
+                imageOperationService::normalize);
     }
 
     @FXML
@@ -429,10 +440,16 @@ public class HomeController {
 
     @FXML
     public void showHistograms() {
-        final Map<Integer, Histogram> histograms = histogramService.getHistograms(this.actual.getOriginal());
-        for (Map.Entry<Integer, Histogram> entry : histograms.entrySet()) {
-            showHistogram(entry.getValue(), "Histogram for  band " + entry.getKey());
-        }
+        histogramService.getHistograms(imageOperationService.normalize(this.actual.getOriginal()))
+                .forEach((b, h) -> showHistogram(h, "Histogram for band " + b));
+    }
+
+    @FXML
+    public void showCumulativeDistributionHistograms() {
+        histogramService.getHistograms(imageOperationService.normalize(this.actual.getOriginal()))
+                .forEach((b, h) ->
+                        showHistogram(histogramService.getCumulativeDistributionHistogram(h),
+                                "Cumulative Distribution Histogram for band " + b));
     }
 
 

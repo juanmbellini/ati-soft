@@ -17,4 +17,20 @@ public interface HistogramService {
      * @return A {@link Map} containing, for each band, the corresponding {@link Histogram}.
      */
     Map<Integer, Histogram> getHistograms(Image image);
+
+    /**
+     * Performs the {@link Histogram} equalization.
+     *
+     * @param histogram The {@link Histogram} to be equalized.
+     * @return A new {@link Histogram} instance, which is the equalized version of the given {@code histogram}.
+     */
+    Histogram getCumulativeDistributionHistogram(Histogram histogram);
+
+    /**
+     * Returns an {@link Image} whose {@link Histogram}s are equalized.
+     *
+     * @param image The {@link Image} whose histograms will be equalized.
+     * @return An {@link Image} with equalized {@link Histogram}s.
+     */
+    Image equalize(Image image);
 }
