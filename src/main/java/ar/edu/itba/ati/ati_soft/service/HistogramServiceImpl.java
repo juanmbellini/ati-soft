@@ -51,7 +51,7 @@ public class HistogramServiceImpl implements HistogramService {
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> getCumulativeDistributionHistogram(e.getValue())));
         return ImageManipulationHelper.createApplying(image,
-                (x, y, b, v) -> cumulativeHistograms.get(b).getFrequency((v.intValue())));
+                (x, y, b, v) -> (double) cumulativeHistograms.get(b).getCount((v.intValue())));
     }
 
     /**

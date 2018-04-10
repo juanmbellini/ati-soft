@@ -793,8 +793,8 @@ public class HomeController {
         final BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
         barChart.setCategoryGap(0);
         barChart.setBarGap(0);
-        xAxis.setLabel("Value");
-        yAxis.setLabel("Frequency");
+        xAxis.setLabel("Gray level");
+        yAxis.setLabel("Relative Frequency");
         barChart.getData().addAll(Collections.singleton(series));
         // Create window
         final VBox vBox = new VBox();
