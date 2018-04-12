@@ -366,6 +366,12 @@ public class HomeController {
     }
 
     @FXML
+    public void increaseContrast() {
+        oneImageOperationAction(histogramService::increaseContrast, "contrast increase",
+                imageOperationService::normalize);
+    }
+
+    @FXML
     public void additiveGaussianNoise() {
         getNumber("Mean value for Additive Gaussian Noise", "", "Insert the mean value", Double::parseDouble)
                 .ifPresent(mean -> getNumber("Standard Deviation value for Additive Gaussian Noise", "",
