@@ -27,6 +27,14 @@ public interface HistogramService {
     Histogram getCumulativeDistributionHistogram(Histogram histogram);
 
     /**
+     * Increases the contrast of the image, applying contrast stretching.
+     *
+     * @param image The {@link Image} whose contrast will be increased.
+     * @return A new {@link Image} with the contrast increased.
+     */
+    Image increaseContrast(Image image);
+
+    /**
      * Returns an {@link Image} whose {@link Histogram}s are equalized.
      *
      * @param image The {@link Image} whose histograms will be equalized.
