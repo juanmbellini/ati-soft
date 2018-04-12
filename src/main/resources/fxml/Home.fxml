@@ -3,82 +3,93 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.*?>
-<BorderPane fx:id="root" maxHeight="-Infinity" fx:controller="ar.edu.itba.ati.ati_soft.controller.HomeController"
-            maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0"
-            prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1">
+<?import javafx.scene.layout.BorderPane?>
+<BorderPane fx:id="root"
+            fx:controller="ar.edu.itba.ati.ati_soft.controller.HomeController"
+            maxWidth="-Infinity" maxHeight="-Infinity"
+            minWidth="-Infinity" minHeight="-Infinity"
+            prefWidth="800.0" prefHeight="600.0"
+            xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <MenuBar BorderPane.alignment="CENTER">
-            <menus>
-                <Menu mnemonicParsing="false" text="File">
+            <Menu mnemonicParsing="false" text="File">
+                <Menu mnemonicParsing="false" text="New">
                     <items>
-                        <MenuItem mnemonicParsing="false" text="New"/>
-                        <SeparatorMenuItem/>
-                        <MenuItem mnemonicParsing="false" text="Open" onAction="#openImage"/>
-                        <MenuItem fx:id="saveMenuItem"
-                                  mnemonicParsing="false" text="Save" onAction="#saveImage"/>
-                        <MenuItem fx:id="saveAsMenuItem"
-                                  mnemonicParsing="false" text="Save As..." onAction="#saveImageAs"/>
-                        <SeparatorMenuItem/>
-                        <MenuItem mnemonicParsing="false" onAction="#closeApplication" text="Close"/>
+                        <MenuItem mnemonicParsing="false" text="Homogeneous image... "
+                                  onAction="#newHomogeneousImage" accelerator="Shortcut+N"/>
                     </items>
                 </Menu>
-                <Menu mnemonicParsing="false" text="Edit">
-                    <items>
-                        <MenuItem mnemonicParsing="false" text="Algorithm 1"/>
-                        <MenuItem mnemonicParsing="false" text="Algorithm 2"/>
-                        <MenuItem mnemonicParsing="false" text="Algorithm 3"/>
-                    </items>
-                </Menu>
-                <Menu mnemonicParsing="false" text="Help">
-                    <items>
-                        <MenuItem mnemonicParsing="false" text="About"/>
-                    </items>
-                </Menu>
-            </menus>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Open"
+                          onAction="#openImage" accelerator="Shortcut+O"/>
+                <MenuItem fx:id="saveMenuItem"
+                          mnemonicParsing="false" text="Save"
+                          onAction="#saveImage" accelerator="Shortcut+S"/>
+                <MenuItem fx:id="saveAsMenuItem"
+                          mnemonicParsing="false" text="Save As..."
+                          onAction="#saveImageAs" accelerator="Shortcut+Shift+S"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Close"
+                          onAction="#closeApplication" accelerator="Shortcut+Q"/>
+            </Menu>
+            <Menu mnemonicParsing="false" text="Edit">
+                <MenuItem mnemonicParsing="false" text="Undo" onAction="#undo" accelerator="Shortcut+Z"/>
+                <MenuItem mnemonicParsing="false" text="Redo" onAction="#redo" accelerator="Shortcut+Shift+Z"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Sum..." onAction="#sum"/>
+                <MenuItem mnemonicParsing="false" text="Subtract..." onAction="#subtract"/>
+                <MenuItem mnemonicParsing="false" text="Multiply..." onAction="#multiply"/>
+                <MenuItem mnemonicParsing="false" text="Multiply by scalar..." onAction="#multiplyByScalar"/>
+                <MenuItem mnemonicParsing="false" text="Dynamic Range Compression"
+                          onAction="#dynamicRangeCompression"/>
+                <MenuItem mnemonicParsing="false" text="Gamma power..." onAction="#gammaPower"/>
+                <MenuItem mnemonicParsing="false" text="Normalize" onAction="#normalize"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Negative" onAction="#negative"/>
+                <MenuItem mnemonicParsing="false" text="Threshold..." onAction="#threshold"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Increase contrast..." onAction="#increaseContrast"/>
+                <MenuItem mnemonicParsing="false" text="Equalize" onAction="#equalize"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Add Additive Gaussian Noise..."
+                          onAction="#additiveGaussianNoise"/>
+                <MenuItem mnemonicParsing="false" text="Add Multiplicative Rayleigh Noise..."
+                          onAction="#multiplicativeRayleighNoise"/>
+                <MenuItem mnemonicParsing="false" text="Add Multiplicative Exponential Noise..."
+                          onAction="#multiplicativeExponentialNoise"/>
+                <MenuItem mnemonicParsing="false" text="Add Salt and Pepper Noise..."
+                          onAction="#saltAndPepperNoise"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Apply mean filter..."
+                          onAction="#meanFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply median filter..."
+                          onAction="#medianFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply weighted median filter..."
+                          onAction="#weightedMedianFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
+                          onAction="#gaussianFilter"/>
+                <MenuItem mnemonicParsing="false" text="Apply high-pass filter..."
+                          onAction="#highPassFilter"/>
+            </Menu>
+            <Menu mnemonicParsing="false" text="View">
+                <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Show histograms" onAction="#showHistograms"/>
+                <MenuItem mnemonicParsing="false" text="Show cumulative distribution histograms"
+                          onAction="#showCumulativeDistributionHistograms"/>
+            </Menu>
+            <Menu mnemonicParsing="false" text="Help">
+                <MenuItem mnemonicParsing="false" text="About"/>
+            </Menu>
         </MenuBar>
     </top>
     <center>
-        <SplitPane disable="true" dividerPositions="0.5" prefHeight="160.0" prefWidth="200.0"
-                   BorderPane.alignment="CENTER">
-            <items>
-                <BorderPane>
-                    <top>
-                        <Label text="Before" BorderPane.alignment="CENTER">
-                            <BorderPane.margin>
-                                <Insets top="10.0"/>
-                            </BorderPane.margin>
-                        </Label>
-                    </top>
-                    <center>
-                        <ImageView fx:id="beforeImageView"
-                                   fitHeight="200.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="true"
-                                   BorderPane.alignment="TOP_CENTER">
-                            <BorderPane.margin>
-                                <Insets top="20.0"/>
-                            </BorderPane.margin>
-                        </ImageView>
-                    </center>
-                </BorderPane>
-                <BorderPane>
-                    <top>
-                        <Label text="After" BorderPane.alignment="CENTER">
-                            <BorderPane.margin>
-                                <Insets top="10.0"/>
-                            </BorderPane.margin>
-                        </Label>
-                    </top>
-                    <center>
-                        <ImageView fx:id="afterImageView"
-                                   fitHeight="200.0" fitWidth="250.0" pickOnBounds="true" preserveRatio="true"
-                                   BorderPane.alignment="TOP_CENTER">
-                            <BorderPane.margin>
-                                <Insets top="20.0"/>
-                            </BorderPane.margin>
-                        </ImageView>
-                    </center>
-                </BorderPane>
-            </items>
-        </SplitPane>
+        <ImageView fx:id="imageView"
+                   fitWidth="700.0" fitHeight="450.0" pickOnBounds="true" preserveRatio="true"
+                   BorderPane.alignment="TOP_CENTER">
+            <BorderPane.margin>
+                <Insets top="50.0"/>
+            </BorderPane.margin>
+        </ImageView>
     </center>
 </BorderPane>

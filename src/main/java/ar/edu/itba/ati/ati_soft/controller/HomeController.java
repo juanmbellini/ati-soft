@@ -1,17 +1,29 @@
 package ar.edu.itba.ati.ati_soft.controller;
 
-import ar.edu.itba.ati.ati_soft.interfaces.ImageFileService;
-import ar.edu.itba.ati.ati_soft.interfaces.UnsupportedImageFileException;
+import ar.edu.itba.ati.ati_soft.interfaces.*;
+import ar.edu.itba.ati.ati_soft.models.Histogram;
 import ar.edu.itba.ati.ati_soft.models.Image;
+import ar.edu.itba.ati.ati_soft.utils.ToSeriesCollector;
 import de.felixroske.jfxsupport.FXMLController;
 import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
+import javafx.scene.control.Alert;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelWriter;
-import javafx.scene.image.WritableImage;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import org.apache.commons.collections4.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +31,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Controller class for the main view.
@@ -39,9 +53,29 @@ public class HomeController {
     // ==============================================================================
 
     /**
-     * An {@link ImageFileService} to manipulate image files.
+     * An {@link ImageIOService} to perform ImageIO stuff (opening, saving, translating, etc).
      */
-    private final ImageFileService imageFileService;
+    private final ImageIOService imageIOService;
+
+    /**
+     * An {@link ImageOperationService} to perform image operations over the actual image.
+     */
+    private final ImageOperationService imageOperationService;
+
+    /**
+     * A {@link NoiseGenerationService} used to pollute images.
+     */
+    private final NoiseGenerationService noiseGenerationService;
+
+    /**
+     * A {@link SlidingWindowService} used to apply filters to images.
+     */
+    private final SlidingWindowService slidingWindowService;
+
+    /**
+     * A {@link HistogramService} used to calculate image histograms.
+     */
+    private final HistogramService histogramService;
 
 
     // ==============================================================================
@@ -68,16 +102,10 @@ public class HomeController {
     private MenuItem saveAsMenuItem;
 
     /**
-     * The {@link ImageView} that will show an image without any changes.
-     */
-    @FXML
-    private ImageView beforeImageView;
-
-    /**
      * The {@link ImageView} that will show an image with changes applied.
      */
     @FXML
-    private ImageView afterImageView;
+    private ImageView imageView;
 
     // ==============================================================================
     // Event handling
@@ -85,38 +113,55 @@ public class HomeController {
 
 
     // ==============================================================================
-    // Fields
+    // State
     // ==============================================================================
 
+    // ================================
+    // Initial stuff
+    // ================================
+
     /**
-     * The {@link File} from where the image was opened.
+     * The {@link File} from where the image was opened (i.e used for saving the image).
      */
     private File openedImageFile;
 
     /**
+     * An {@link ImageIOContainer} that holds the opened {@link Image}.
+     * This is used to build a new {@link BufferedImage} each time the actual {@link Image} is changed
+     * (i.e just the metadata is used).
+     */
+    private ImageIOContainer initialImageIOContainer;
+
+    /**
+     * The initially displayed {@link BufferedImage},
+     * used for quickly display of the original image with the {@link #showOriginal()} method.
+     */
+    private BufferedImage initialDisplayed;
+
+
+    // ================================
+    // Actual stuff
+    // ================================
+
+    /**
      * The actual image being displayed.
      */
-    private Image actualImage;
-//
-//    /**
-//     * The initial {@link Image}
-//     */
-//    private Image initialImage;
+    private ImagePair actual;
 
     /**
      * The last saved {@link Image}.
      */
-    private Image lastSaved;
-//
-//    /**
-//     * A {@link Stack} holding {@link Image}s obtained.
-//     */
-//    private final Stack<Image> imageHistory;
-//
-//    /**
-//     * {@link Stack} holding each undone image (i.e those taken from the {@link #imageHistory} stack).
-//     */
-//    private final Stack<Image> undoneImages;
+    private ImagePair lastSaved;
+
+    /**
+     * A {@link Stack} holding {@link Image}s obtained.
+     */
+    private final Stack<ImagePair> imageHistory;
+
+    /**
+     * {@link Stack} holding each undone image (i.e those that were undone).
+     */
+    private final Stack<ImagePair> undoneImages;
 
 
     // ==============================================================================
@@ -124,8 +169,18 @@ public class HomeController {
     // ==============================================================================
 
     @Autowired
-    public HomeController(ImageFileService imageFileService) {
-        this.imageFileService = imageFileService;
+    public HomeController(ImageIOService imageIOService,
+                          ImageOperationService imageOperationService,
+                          NoiseGenerationService noiseGenerationService,
+                          SlidingWindowService slidingWindowService,
+                          HistogramService histogramService) {
+        this.imageIOService = imageIOService;
+        this.imageOperationService = imageOperationService;
+        this.noiseGenerationService = noiseGenerationService;
+        this.slidingWindowService = slidingWindowService;
+        this.histogramService = histogramService;
+        this.imageHistory = new Stack<>();
+        this.undoneImages = new Stack<>();
     }
 
     @FXML
@@ -144,14 +199,38 @@ public class HomeController {
 //        };
 //        this.saveMenuItem.disableProperty().bind(Bindings.or(notOpenedBinding, notModifiedBinding));
 //        this.saveAsMenuItem.disableProperty().bind(notOpenedBinding);
-
         LOGGER.debug("Home controller initialized");
     }
 
 
     // ==============================================================================
-    // Behaviour methods
+    // Controller methods
     // ==============================================================================
+
+    // ======================================
+    // File actions
+    // ======================================
+
+    @FXML
+    public void newHomogeneousImage() {
+        getNumber("Homogeneous image creation", "Insert the image width",
+                "Insert the image width", Integer::parseInt)
+                .ifPresent(width -> getNumber("Homogeneous image creation", "Insert the image height",
+                        "Insert the image height", Integer::parseInt)
+                        .ifPresent(height ->
+                                getNumber("Homogeneous image creation",
+                                        "Insert the amount of bands (1 for gray, 3 for RGB)",
+                                        "Insert the amount of bands", Integer::parseInt)
+                                        .ifPresent(bands -> getNumber("Homogeneous image creation",
+                                                "Insert the pixels intensity",
+                                                "Insert the pixels intensity", Integer::parseInt)
+                                                .ifPresent(value -> {
+                                                    final Image image = Image.homogeneous(width, height, bands, value);
+                                                    final BufferedImage buffered = imageIOService
+                                                            .toImageIO(ImageIOContainer.buildForSyntheticImage(image));
+                                                    setUp(buffered, null);
+                                                }))));
+    }
 
     /**
      * Closes the application.
@@ -168,23 +247,32 @@ public class HomeController {
     @FXML
     public void openImage() {
         LOGGER.debug("Opening image...");
-        Optional.ofNullable(selectFile())
-                .map(this::openImage)
-                .map(Image::getContent)
-                .ifPresent(image -> {
-                    drawImage(image, beforeImageView);
-                    drawImage(image, afterImageView);
-                });
+        Optional.ofNullable(selectFile()).ifPresent(this::openImage);
     }
 
     @FXML
     public void saveImage() {
         LOGGER.debug("Saving image...");
         validateSave();
-        if (actualImage == lastSaved) {
+        final File file = Optional.ofNullable(this.openedImageFile)
+                .orElseGet(() -> {
+                    // First save...
+                    final FileChooser fileChooser = new FileChooser();
+                    fileChooser.setTitle("Save...");
+                    fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+                    final int bands = actual.original.getBands();
+                    final String name = bands == 1 ? ".pgm" : bands == 3 ? ".ppm" : "";
+                    fileChooser.setInitialFileName(name);
+                    return fileChooser.showSaveDialog(root.getScene().getWindow());
+                });
+        // If after the optional stuff the file continues to be null, then finish
+        if (file == null) {
+            return;
+        }
+        if (actual.getDisplayed() == lastSaved.getDisplayed()) {
             LOGGER.warn("No changes has been made to image.");
         }
-        saveImage(openedImageFile);
+        saveImage(file);
     }
 
     @FXML
@@ -202,28 +290,228 @@ public class HomeController {
     }
 
 
+    // ======================================
+    // Edit actions
+    // ======================================
+
+    @FXML
+    public void undo() {
+        doUndo();
+        drawActual();
+    }
+
+    @FXML
+    public void redo() {
+        doRedo();
+        drawActual();
+    }
+
+    @FXML
+    public void sum() {
+        twoImagesOperationAction(imageOperationService::sum, "sum", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void subtract() {
+        twoImagesOperationAction(imageOperationService::subtract, "subtraction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void multiply() {
+        twoImagesOperationAction(imageOperationService::multiply, "multiplication", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void multiplyByScalar() {
+        getNumber("Multiplication by scalar", "", "Insert the scalar", Double::parseDouble)
+                .ifPresent(scalar ->
+                        oneImageOperationAction(image -> imageOperationService.multiplyByScalar(image, scalar),
+                                "scalar multiplication", imageOperationService::dynamicRangeCompression));
+    }
+
+    @FXML
+    public void dynamicRangeCompression() {
+        oneImageOperationAction(imageOperationService::dynamicRangeCompression, "dynamic range compression", Function.identity());
+    }
+
+    @FXML
+    public void gammaPower() {
+        getNumber("Gamma power", "", "Insert the gamma value", Double::parseDouble)
+                .ifPresent(gamma ->
+                        oneImageOperationAction(image -> imageOperationService.gammaPower(image, gamma),
+                                "gamma power transformation", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void normalize() {
+        oneImageOperationAction(imageOperationService::normalize, "normalization", Function.identity());
+    }
+
+    @FXML
+    public void negative() {
+        oneImageOperationAction(imageOperationService::getNegative, "negative calculation", Function.identity());
+    }
+
+    @FXML
+    public void threshold() {
+        getNumber("Threshold value", "", "Insert the threshold", Integer::parseInt)
+                .ifPresent(u -> oneImageOperationAction(image -> imageOperationService.threshold(image, u),
+                        "threshold function", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void equalize() {
+        oneImageOperationAction(histogramService::equalize, "image equalization",
+                imageOperationService::normalize);
+    }
+
+    @FXML
+    public void increaseContrast() {
+        oneImageOperationAction(histogramService::increaseContrast, "contrast increase",
+                imageOperationService::normalize);
+    }
+
+    @FXML
+    public void additiveGaussianNoise() {
+        getNumber("Mean value for Additive Gaussian Noise", "", "Insert the mean value", Double::parseDouble)
+                .ifPresent(mean -> getNumber("Standard Deviation value for Additive Gaussian Noise", "",
+                        "Insert the standard deviation value", Double::parseDouble)
+                        .ifPresent(stdDev -> oneImageOperationAction(image ->
+                                        noiseGenerationService.additiveGaussianNoise(image, mean, stdDev),
+                                "addition of Additive Gaussian Noise", imageOperationService::normalize)));
+    }
+
+    @FXML
+    public void multiplicativeRayleighNoise() {
+        getNumber("Scale value for Multiplicative Rayleigh Nose", "",
+                "Insert the scale value (i.e the xi value)", Double::parseDouble)
+                .ifPresent(scale -> oneImageOperationAction(image ->
+                                noiseGenerationService.multiplicativeRayleighNoise(image, scale),
+                        "addition of Multiplicative Rayleigh Noise", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void multiplicativeExponentialNoise() {
+        getNumber("Rate value for Multiplicative Exponential Nose", "",
+                "Insert the rate value (i.e the lambda value)", Double::parseDouble)
+                .ifPresent(rate -> oneImageOperationAction(image ->
+                                noiseGenerationService.multiplicativeExponentialNoise(image, rate),
+                        "addition of Multiplicative Exponential Noise", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void saltAndPepperNoise() {
+        getNumber("Lower limit value (p0) for Salt and Pepper Noise", "",
+                "Insert the p0 value", Double::parseDouble)
+                .ifPresent(p0 -> getNumber("Upper limit value (p1) for Salt and Pepper Noise", "",
+                        "Insert the p1 value", Double::parseDouble)
+                        .ifPresent(p1 -> oneImageOperationAction(image ->
+                                        noiseGenerationService.saltAndPepperNoise(image, p0, p1),
+                                "addition of Salt and Pepper Noise", imageOperationService::normalize)));
+    }
+
+    @FXML
+    public void meanFilter() {
+        getNumber("Window length for Mean Filter", "",
+                "Insert the window's length", Integer::parseInt)
+                .ifPresent(length -> oneImageOperationAction(image ->
+                                slidingWindowService.applyMeanFilter(image, length),
+                        "Mean Filtering", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void medianFilter() {
+        getNumber("Window length for Median Filter", "",
+                "Insert the window's length", Integer::parseInt)
+                .ifPresent(length -> oneImageOperationAction(image ->
+                                slidingWindowService.applyMedianFilter(image, length),
+                        "Median Filtering", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void weightedMedianFilter() {
+        getNumberArray("Weights mask for weighted median filter",
+                "Insert mask by separating values with commas. Every three values a row will be created. " +
+                        "Insert just 9 values", "Insert the weight mask", Integer::parseInt, 9)
+                .map(list -> ListUtils.partition(list, 3))
+                .map(lists ->
+                        lists.stream().map(list -> list.toArray(new Integer[list.size()])).toArray(Integer[][]::new))
+                .ifPresent(filter ->
+                        oneImageOperationAction(image -> slidingWindowService.applyWeightMedianFilter(image, filter),
+                                "Weighted Median Filtering", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void gaussianFilter() {
+        getNumber("Standard deviation for Median Filter", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(standardDeviation -> oneImageOperationAction(image ->
+                                slidingWindowService.applyGaussianFilter(image, standardDeviation),
+                        "Gaussian Filtering", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void highPassFilter() {
+        getNumber("Window length for High-Pass Filter", "",
+                "Insert the window's length", Integer::parseInt)
+                .ifPresent(length -> oneImageOperationAction(image ->
+                                slidingWindowService.applyHighPassFilter(image, length),
+                        "High-Pass Filtering", imageOperationService::normalize));
+    }
+
+    // ======================================
+    // View actions
+    // ======================================
+
+    @FXML
+    public void showOriginal() {
+        final ImageView originalImageView = new ImageView();
+        drawImage(initialDisplayed, originalImageView);
+        originalImageView.preserveRatioProperty().setValue(true);
+        final double width = 700;
+        originalImageView.setFitWidth(width);
+        final double height = originalImageView.getLayoutBounds().getHeight();
+        final BorderPane borderPane = new BorderPane(originalImageView);
+        final Scene scene = new Scene(borderPane, width, height);
+        final Stage stage = new Stage();
+        stage.setScene(scene);
+        originalImageView.fitWidthProperty().bind(stage.widthProperty());
+        originalImageView.fitHeightProperty().bind(stage.heightProperty());
+        stage.show();
+    }
+
+    @FXML
+    public void showHistograms() {
+        histogramService.getHistograms(imageOperationService.normalize(this.actual.getOriginal()))
+                .forEach((b, h) -> showHistogram(h, "Histogram for band " + b));
+    }
+
+    @FXML
+    public void showCumulativeDistributionHistograms() {
+        histogramService.getHistograms(imageOperationService.normalize(this.actual.getOriginal()))
+                .forEach((b, h) ->
+                        showHistogram(histogramService.getCumulativeDistributionHistogram(h),
+                                "Cumulative Distribution Histogram for band " + b));
+    }
+
+
     // ==============================================================================
     // Helper methods
     // ==============================================================================
 
     /**
-     * Opens the given {@code imageFile}.
+     * Opens the given {@code imageFile}, performing the necessary steps to initialize everything.
      *
      * @param imageFile The {@link File} containing the image to be opened.
-     * @return a {@link BufferedImage} instance containing the image data,
-     * or {@code null} in case the image could not be opened.
      */
-    private Image openImage(File imageFile) {
+    private void openImage(File imageFile) {
         try {
-            final Image image = imageFileService.openImage(imageFile);
-            afterOpeningImage(image, imageFile);
-            return image;
+            final BufferedImage image = imageIOService.openImage(imageFile);
+            setUp(image, imageFile);
         } catch (UnsupportedImageFileException e) {
             LOGGER.debug("File is not an image");
-            return null;
         } catch (IOException e) {
             LOGGER.debug("Could not open image");
-            return null;
         }
     }
 
@@ -233,10 +521,15 @@ public class HomeController {
      * @param image The opened {@link Image}.
      * @param file  The {@link File} from where the image was opened.
      */
-    private void afterOpeningImage(Image image, File file) {
-        this.actualImage = image;
-        this.lastSaved = image;
+    private void setUp(BufferedImage image, File file) {
+        this.initialDisplayed = image;
+        this.initialImageIOContainer = imageIOService.fromImageIO(image);
+        this.actual = new ImagePair(this.initialImageIOContainer.getImage(), image);
+        this.lastSaved = this.actual;
         this.openedImageFile = file;
+        this.imageHistory.clear();
+        this.undoneImages.clear();
+        drawActual();
     }
 
     /**
@@ -245,7 +538,7 @@ public class HomeController {
      * @throws IllegalStateException If the state of the system does not allow to perform a save operation.
      */
     private void validateSave() throws IllegalStateException {
-        if (this.actualImage == null) {
+        if (this.actual == null) {
             throw new IllegalStateException("No opened image.");
         }
     }
@@ -253,11 +546,11 @@ public class HomeController {
     /**
      * Performs the save operation, using the given {@link File}.
      *
-     * @param file {@link File} where the {@link #actualImage} will be saved.
+     * @param file {@link File} where the actual image will be saved.
      */
     private void saveImage(File file) {
         try {
-            imageFileService.saveImage(actualImage, file);
+            imageIOService.saveImage(this.actual.getDisplayed(), file);
         } catch (UnsupportedImageFileException e) {
             LOGGER.debug("Something wrong had happened.");
         } catch (IOException e) {
@@ -265,22 +558,6 @@ public class HomeController {
         }
     }
 
-    /**
-     * Draws the given {@link BufferedImage} into the given {@link ImageView}.
-     *
-     * @param image     The image to be drawn.
-     * @param imageView The {@link ImageView} to which the image will be drawn.
-     */
-    private static void drawImage(BufferedImage image, ImageView imageView) {
-        final WritableImage writableImage = new WritableImage(image.getWidth(), image.getHeight());
-        final PixelWriter pixelWriter = writableImage.getPixelWriter();
-        for (int i = 0; i < image.getWidth(); i++) {
-            for (int j = 0; j < image.getHeight(); j++) {
-                pixelWriter.setArgb(i, j, image.getRGB(i, j));
-            }
-        }
-        imageView.setImage(writableImage);
-    }
 
     /**
      * Makes the user select a file by the use of a {@link FileChooser}.
@@ -291,7 +568,7 @@ public class HomeController {
         final FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select image");
         fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
-        final List<FileChooser.ExtensionFilter> extensionFilters = imageFileService.getSupportedFormats().entrySet()
+        final List<FileChooser.ExtensionFilter> extensionFilters = imageIOService.getSupportedFormats().entrySet()
                 .stream()
                 .map(e -> new FileChooser.ExtensionFilter(e.getValue() + " (." + e.getKey() + ")", "*." + e.getKey()))
                 .collect(Collectors.toList());
@@ -299,10 +576,302 @@ public class HomeController {
         return fileChooser.showOpenDialog(root.getScene().getWindow());
     }
 
+    /**
+     * Show ups a {@link javafx.scene.control.Dialog} that expects a numeric value to be inserted.
+     * The transformation is performed using a {@link Function} that takes a {@link String}
+     * and converts it into a {@link Number}.
+     * In case the inserted value is not a number that can be created with the {@code converter},
+     * an {@link javafx.scene.control.Alert.AlertType#ERROR} {@link Alert} is showed up.
+     *
+     * @param header       The message to be displayed in the {@link javafx.scene.control.Dialog} header.
+     * @param defaultValue The default value for the {@link javafx.scene.control.Dialog}
+     *                     (i.e what appears in the text field).
+     * @param converter    A {@link Function} to be used to create the {@link Number}.
+     * @param <N>          The concrete subtype of {@link Number} (e.g {@link Integer} or {@link Double}).
+     * @return An {@link Optional} of {@code N} holding the inserted value,
+     * or empty if no value, or no number was inserted.
+     */
+    private <N extends Number> Optional<N> getNumber(String title, String header, String defaultValue,
+                                                     Function<String, N> converter) {
+        final TextInputDialog textInputDialog = new TextInputDialog(defaultValue);
+        textInputDialog.setHeaderText(header);
+        textInputDialog.setTitle(title);
+        return textInputDialog.showAndWait().map(value -> convertToNumber(value, converter));
+    }
+
+    /**
+     * Show ups a {@link javafx.scene.control.Dialog} that expects a list of numeric value to be inserted.
+     * The transformation is performed using a {@link Function} that takes a {@link String}
+     * and converts it into a {@link Number}.
+     * In case the inserted value is not a number that can be created with the {@code converter},
+     * an {@link javafx.scene.control.Alert.AlertType#ERROR} {@link Alert} is showed up.
+     * Also, if the amount of elements inserted is not the {@code requiredAmount}, an error message is displayed.
+     *
+     * @param header         The message to be displayed in the {@link javafx.scene.control.Dialog} header.
+     * @param defaultValue   The default value for the {@link javafx.scene.control.Dialog}
+     *                       (i.e what appears in the text field).
+     * @param converter      A {@link Function} to be used to create the {@link Number}.
+     * @param requiredAmount The required amount of elements that must be inserted.
+     * @param <N>            The concrete subtype of {@link Number} (e.g {@link Integer} or {@link Double}).
+     * @return An {@link Optional} of {@code N} holding the inserted value,
+     * or empty if no value, no number was inserted, or not the {@code requiredAmount} of values were inserted.
+     */
+    private <N extends Number> Optional<List<N>> getNumberArray(String title, String header, String defaultValue,
+                                                                Function<String, N> converter, int requiredAmount) {
+        final TextInputDialog textInputDialog = new TextInputDialog(defaultValue);
+        textInputDialog.setHeaderText(header);
+        textInputDialog.setTitle(title);
+        final List<N> values = textInputDialog.showAndWait()
+                .map(str -> str.split(",", -1))
+                .map(Arrays::stream)
+                .map(stream -> stream.map(value -> convertToNumber(value, converter)).collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+        if (values.size() != requiredAmount) {
+            final Alert alert = new Alert(Alert.AlertType.ERROR,
+                    "The amount of inserted values is not the required amount. "
+                            + requiredAmount + " values must be inserted");
+            alert.setHeaderText("");
+            alert.show();
+            return Optional.empty();
+        }
+        return Optional.of(values);
+    }
+
+    /**
+     * Converts the given {@code value} into a number, using the given {@code converter}.
+     * In case the {@code value} is not a valid number
+     * (i.e can't be converted into a number with the given {@code converter}),
+     * an {@link Alert} {@link javafx.scene.control.Dialog} is displayed, and null is returned.
+     *
+     * @param value     The {@link String} to be converted into a number.
+     * @param converter The {@link Function} to apply to the {@code value} to transform it into a number.
+     * @param <N>       The concrete subtype of {@link Number} (e.g {@link Integer} or {@link Double}).
+     * @return The converted value.
+     */
+    private <N extends Number> N convertToNumber(String value, Function<String, N> converter) {
+        try {
+            return converter.apply(value);
+        } catch (NumberFormatException e) {
+            final Alert alert = new Alert(Alert.AlertType.ERROR,
+                    "The value \"" + value + "\" is not a number.");
+            alert.setHeaderText("");
+            alert.show();
+            return null;
+        }
+    }
+
+    /**
+     * Performs the given {@code imageOperation}, applying it to the given actual image.
+     * The result of the operation will be set as the new actual image.
+     *
+     * @param imageOperation   The operation to be performed over the actual image.
+     * @param operationName    Operation name (to be used for logging).
+     * @param displayOperation A {@link Function} that takes the new {@link Image}
+     *                         and performs the operation that must be done to be displayed.
+     *                         (e.g normalization, dynamic range compression, etc.)
+     */
+    private void oneImageOperationAction(Function<Image, Image> imageOperation, String operationName,
+                                         Function<Image, Image> displayOperation) {
+        LOGGER.debug("Performing the {}...", operationName);
+        final Image newImage = imageOperation.apply(this.actual.getOriginal());
+        afterChanging(newImage, displayOperation);
+    }
+
+
+    /**
+     * Performs the given {@code imageOperation},
+     * using the actual image as first {@link Image},
+     * and opening a new {@link Image} using the {@link #openImage()} method.
+     * The result of the operation will be set a the new actual image.
+     *
+     * @param imageOperation   The two {@link Image} operation to be performed.
+     * @param operationName    Operation name (to be used for logging).
+     * @param displayOperation A {@link Function} that takes the new {@link Image}
+     *                         and performs the operation that must be done to be displayed.
+     *                         (e.g normalization, dynamic range compression, etc.)
+     */
+    private void twoImagesOperationAction(BiFunction<Image, Image, Image> imageOperation, String operationName,
+                                          Function<Image, Image> displayOperation) {
+        Optional.ofNullable(selectFile())
+                .map(anotherImageFile -> {
+                    try {
+                        return imageIOService.openImage(anotherImageFile);
+                    } catch (IOException e) {
+                        LOGGER.error("Could not open image file.");
+                        LOGGER.debug("Error message: {}", e.getMessage());
+                        LOGGER.trace("Stacktrace: ", e);
+                        return null;
+                    }
+                })
+                .map(imageIOService::fromImageIO)
+                .map(ImageIOContainer::getImage)
+                .map(anotherImage -> imageOperation.apply(this.actual.getOriginal(), anotherImage))
+                .ifPresent(newImage -> {
+                    LOGGER.debug("Performing {}...", operationName);
+                    afterChanging(newImage, displayOperation);
+                });
+    }
+
+    /**
+     * Performs the last steps that must be done after changing the actual image.
+     *
+     * @param newImage         The new {@link Image}.
+     * @param displayOperation A {@link Function} that takes the new {@link Image}
+     *                         and performs the operation that must be done to be displayed.
+     *                         (e.g normalization, dynamic range compression, etc.)
+     */
+    private void afterChanging(Image newImage, Function<Image, Image> displayOperation) {
+        modify(new ImagePair(newImage, displayOperation,
+                image -> imageIOService.toImageIO(this.initialImageIOContainer.buildForNewImage(image))));
+        drawActual();
+    }
+
+    /**
+     * Modifies the actual image, setting the given {@link ImagePair} as the actual,
+     * saving the ex-actual in the {@link #imageHistory} {@link Stack},
+     * and clearing the {@link #undoneImages} {@link Stack}.
+     *
+     * @param newPair The new actual image (i.e the original-display pair).
+     */
+    private void modify(ImagePair newPair) {
+        this.imageHistory.push(this.actual);
+        this.undoneImages.clear();
+        this.actual = newPair;
+    }
+
+    /**
+     * Draws the actual image in the {@link #imageView} {@link ImageView}.
+     */
+    private void drawActual() {
+        drawImage(this.actual.getDisplayed(), this.imageView);
+    }
+
+    /**
+     * Performs the "undo" operation.
+     */
+    private void doUndo() {
+        if (imageHistory.isEmpty()) {
+            return;
+        }
+        this.undoneImages.push(this.actual);
+        this.actual = this.imageHistory.pop();
+    }
+
+    /**
+     * Performs the "redo" operation.
+     */
+    private void doRedo() {
+        if (undoneImages.isEmpty()) {
+            return;
+        }
+        this.imageHistory.push(this.actual);
+        this.actual = this.undoneImages.pop();
+    }
+
+    /**
+     * Draws the given {@link BufferedImage} into the given {@link ImageView}.
+     *
+     * @param image     The image to be drawn.
+     * @param imageView The {@link ImageView} to which the image will be drawn.
+     */
+    private void drawImage(BufferedImage image, ImageView imageView) {
+        imageView.setImage(SwingFXUtils.toFXImage(image, null));
+    }
+
+
+    /**
+     * Shows the given histogram, displaying the given {@code seriesName}.
+     *
+     * @param histogram  The {@link Histogram} to be displayed.
+     * @param seriesName The name for the series in the displayed chart.
+     */
+    private static void showHistogram(Histogram histogram, String seriesName) {
+        // Generate chart data
+        final int min = histogram.minCategory();
+        final int max = histogram.maxCategory();
+        final XYChart.Series<String, Number> series = IntStream.range(min, max + 1)
+                .mapToObj(i -> new XYChart.Data<String, Number>(Integer.toString(i), histogram.getFrequency(i)))
+                .collect(new ToSeriesCollector<>());
+        series.setName(seriesName);
+        // Generate chart
+        final CategoryAxis xAxis = new CategoryAxis();
+        final NumberAxis yAxis = new NumberAxis();
+        final BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
+        barChart.setCategoryGap(0);
+        barChart.setBarGap(0);
+        xAxis.setLabel("Gray level");
+        yAxis.setLabel("Relative Frequency");
+        barChart.getData().addAll(Collections.singleton(series));
+        // Create window
+        final VBox vBox = new VBox();
+        vBox.getChildren().addAll(barChart);
+        StackPane root = new StackPane();
+        root.getChildren().add(vBox);
+        Scene scene = new Scene(root, 800, 450);
+        final Stage stage = new Stage();
+        stage.setScene(scene);
+        stage.show();
+    }
 
     // ==============================================================================
     // Helper classes
     // ==============================================================================
 
-    // ...
+    /**
+     * Bean class that holds together an {@link Image} with its {@link BufferedImage} representation.
+     */
+    private static final class ImagePair {
+
+        /**
+         * The original {@link Image} (i.e the model).
+         */
+        private final Image original;
+
+        /**
+         * The {@link BufferedImage} (i.e the displayed representation of the {@link #original} {@link Image}).
+         */
+        private final BufferedImage displayed;
+
+        /**
+         * Constructor that builds the displayed {@link BufferedImage}.
+         *
+         * @param original                The original {@link Image} (i.e the model).
+         * @param displayOperation        A {@link Function} that takes the {@code original}
+         *                                and transform it into another {@link Image} that can be displayed.
+         * @param toBufferedImageFunction A {@link Function} that takes an {@link Image}
+         *                                and transforms it into the {@link BufferedImage} representation of it.
+         */
+        private ImagePair(Image original, Function<Image, Image> displayOperation,
+                          Function<Image, BufferedImage> toBufferedImageFunction) {
+            this.original = original;
+            this.displayed = displayOperation.andThen(toBufferedImageFunction).apply(this.original);
+        }
+
+        /**
+         * Constructor that sets values.
+         *
+         * @param original  The original {@link Image} (i.e the model).
+         * @param displayed The {@link BufferedImage}
+         *                  (i.e the displayed representation of the {@code original}) {@link Image}.
+         */
+        private ImagePair(Image original, BufferedImage displayed) {
+            this.original = original;
+            this.displayed = displayed;
+        }
+
+        /**
+         * @return The original {@link Image} (i.e the model).
+         */
+        private Image getOriginal() {
+            return original;
+        }
+
+        /**
+         * @return The {@link BufferedImage}
+         * (i.e the displayed representation of the {@link #getOriginal()} {@link Image}).
+         */
+        private BufferedImage getDisplayed() {
+            return displayed;
+        }
+    }
 }
