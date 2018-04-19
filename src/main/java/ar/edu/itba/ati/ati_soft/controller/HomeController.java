@@ -376,27 +376,42 @@ public class HomeController {
         getNumber("Mean value for Additive Gaussian Noise", "", "Insert the mean value", Double::parseDouble)
                 .ifPresent(mean -> getNumber("Standard Deviation value for Additive Gaussian Noise", "",
                         "Insert the standard deviation value", Double::parseDouble)
-                        .ifPresent(stdDev -> oneImageOperationAction(image ->
-                                        noiseGenerationService.additiveGaussianNoise(image, mean, stdDev),
-                                "addition of Additive Gaussian Noise", imageOperationService::normalize)));
+                        .ifPresent(stdDev ->
+                                getNumber("Noise density", "Insert the noise density between 0.0 and 1.0",
+                                        "Insert the density", Double::parseDouble)
+                                        .ifPresent(density ->
+                                                oneImageOperationAction(image -> noiseGenerationService
+                                                                .additiveGaussianNoise(image, mean, stdDev, density),
+                                                        "addition of Additive Gaussian Noise",
+                                                        imageOperationService::normalize))));
     }
 
     @FXML
     public void multiplicativeRayleighNoise() {
         getNumber("Scale value for Multiplicative Rayleigh Nose", "",
                 "Insert the scale value (i.e the xi value)", Double::parseDouble)
-                .ifPresent(scale -> oneImageOperationAction(image ->
-                                noiseGenerationService.multiplicativeRayleighNoise(image, scale),
-                        "addition of Multiplicative Rayleigh Noise", imageOperationService::normalize));
+                .ifPresent(scale ->
+                        getNumber("Noise density", "Insert the noise density between 0.0 and 1.0",
+                                "Insert the density", Double::parseDouble)
+                                .ifPresent(density ->
+                                        oneImageOperationAction(image -> noiseGenerationService
+                                                        .multiplicativeRayleighNoise(image, scale, density),
+                                                "addition of Multiplicative Rayleigh Noise",
+                                                imageOperationService::normalize)));
     }
 
     @FXML
     public void multiplicativeExponentialNoise() {
         getNumber("Rate value for Multiplicative Exponential Nose", "",
                 "Insert the rate value (i.e the lambda value)", Double::parseDouble)
-                .ifPresent(rate -> oneImageOperationAction(image ->
-                                noiseGenerationService.multiplicativeExponentialNoise(image, rate),
-                        "addition of Multiplicative Exponential Noise", imageOperationService::normalize));
+                .ifPresent(rate ->
+                        getNumber("Noise density", "Insert the noise density between 0.0 and 1.0",
+                                "Insert the density", Double::parseDouble)
+                                .ifPresent(density ->
+                                        oneImageOperationAction(image -> noiseGenerationService
+                                                        .multiplicativeExponentialNoise(image, rate, density),
+                                                "addition of Multiplicative Exponential Noise",
+                                                imageOperationService::normalize)));
     }
 
     @FXML
