@@ -15,29 +15,32 @@ public interface NoiseGenerationService {
      *                          used to generate pseudorandom numbers with a Gaussian distribution.
      * @param standardDeviation The standard deviation (i.e sigma parameter)
      *                          used to generate pseudorandom numbers with a Gaussian distribution.
+     * @param density           The amount (in percentage between 0.0 and 1.0) of noise to add to the {@code image}.
      * @return A new {@link Image} instance with Additive Gaussian noise added to it.
      */
-    Image additiveGaussianNoise(Image image, double mean, double standardDeviation);
+    Image additiveGaussianNoise(Image image, double mean, double standardDeviation, double density);
 
     /**
      * Adds Multiplicative Rayleigh noise to the given {@link Image}.
      *
-     * @param image The {@link Image} to pollute.
-     * @param scale The scale parameter (i.e the xi parameter)
-     *              used to generate pseudorandom numbers with a Gaussian distribution.
+     * @param image   The {@link Image} to pollute.
+     * @param scale   The scale parameter (i.e the xi parameter)
+     *                used to generate pseudorandom numbers with a Gaussian distribution.
+     * @param density The amount (in percentage between 0.0 and 1.0) of noise to add to the {@code image}.
      * @return A new {@link Image} instance with  Multiplicative Rayleigh noise added to it.
      */
-    Image multiplicativeRayleighNoise(Image image, double scale);
+    Image multiplicativeRayleighNoise(Image image, double scale, double density);
 
     /**
      * Adds Multiplicative Exponential noise to the given {@link Image}.
      *
-     * @param image The {@link Image} to pollute.
-     * @param rate  The rate parameter (i.e the lambda parameter)
-     *              used to generate pseudorandom numbers with a Gaussian distribution.
+     * @param image   The {@link Image} to pollute.
+     * @param rate    The rate parameter (i.e the lambda parameter)
+     *                used to generate pseudorandom numbers with a Gaussian distribution.
+     * @param density The amount (in percentage between 0.0 and 1.0) of noise to add to the {@code image}.
      * @return A new {@link Image} instance with Multiplicative Exponential noise added to it.
      */
-    Image multiplicativeExponentialNoise(Image image, double rate);
+    Image multiplicativeExponentialNoise(Image image, double rate, double density);
 
     /**
      * Adds Salt and Pepper noise to the given {@link Image}.

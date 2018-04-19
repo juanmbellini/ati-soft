@@ -16,19 +16,31 @@ import java.util.Random;
 public class NoiseGenerationServiceImpl implements NoiseGenerationService {
 
     @Override
-    public Image additiveGaussianNoise(Image image, double mean, double standardDeviation) {
+    public Image additiveGaussianNoise(Image image, double mean, double standardDeviation, double density) {
         return ImageManipulationHelper.createApplying(image,
-                (x, y, b, v) -> v + RandomUtils.randomGauss(mean, standardDeviation));
+                (x, y, b, v) -> {
+                    final double toAdd = new Random().nextDouble() <= density ?
+                            RandomUtils.randomGauss(mean, standardDeviation) : 0;
+                    return v + toAdd;
+                });
     }
 
     @Override
-    public Image multiplicativeRayleighNoise(Image image, double scale) {
-        return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> v * RandomUtils.randomRayleigh(scale));
+    public Image multiplicativeRayleighNoise(Image image, double scale, double density) {
+        return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> {
+            final double toMultiply = new Random().nextDouble() <= density ?
+                    RandomUtils.randomRayleigh(scale) : 1;
+            return v * toMultiply;
+        });
     }
 
     @Override
-    public Image multiplicativeExponentialNoise(Image image, double rate) {
-        return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> v * RandomUtils.randomExponential(rate));
+    public Image multiplicativeExponentialNoise(Image image, double rate, double density) {
+        return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> {
+            final double toMultiply = new Random().nextDouble() <= density ?
+                    RandomUtils.randomExponential(rate) : 1;
+            return v * toMultiply;
+        });
     }
 
     @Override
