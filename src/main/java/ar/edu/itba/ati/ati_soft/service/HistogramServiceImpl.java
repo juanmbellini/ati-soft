@@ -60,31 +60,48 @@ public class HistogramServiceImpl implements HistogramService {
                 .mapToDouble(StatsContainer::getMax)
                 .toArray();
         final double r1s[] = Arrays.stream(stats)
-                .mapToDouble(stat ->
-                        rProvider(stat, (m, v) -> m - v, r -> r >= stat.getMin(), (m, v) -> stat.getMin() + m / 2))
+                .mapToDouble(stat -> rProvider(stat,
+                        (m, v) -> m - Math.sqrt(v),
+                        r -> r >= stat.getMin(),
+                        (m, v) -> stat.getMin() + Math.sqrt(v) / 2))
                 .toArray();
         final double r2s[] = Arrays.stream(stats)
-                .mapToDouble(stat ->
-                        rProvider(stat, (m, v) -> m + v, r -> r <= stat.getMax(), (m, v) -> stat.getMax() - m / 2))
+                .mapToDouble(stat -> rProvider(stat,
+                        (m, v) -> m + Math.sqrt(v),
+                        r -> r <= stat.getMax(),
+                        (m, v) -> stat.getMax() - Math.sqrt(v) / 2))
                 .toArray();
         final double s1s[] = IntStream.range(0, stats.length)
-                .mapToDouble(b -> minimums[b] + r1s[b])
-                .map(val -> val / 2)
+                .mapToDouble(b -> {
+                    final double min = minimums[b];
+                    final double r1 = r1s[b];
+                    // r1 is always bigger than min.
+                    return (r1 - min) / 2 + min;
+                })
                 .toArray();
         final double s2s[] = IntStream.range(0, stats.length)
-                .mapToDouble(b -> maximums[b] + r2s[b])
-                .map(val -> val / 2)
+                .mapToDouble(b -> {
+                    final double max = maximums[b];
+                    final double r2 = r2s[b];
+                    // max is always bigger than r2.
+                    return (max - r2) / 2 + r2;
+                })
                 .toArray();
 
-        final QuadFunction<Double, Double, Double, Double, Function<Double, Double>> toLinear = toLinear();
-        final BiFunction<Integer, Double, Double> f1 = (b, v) -> toLinear.andThen(linear -> linear.apply(v))
-                .apply(minimums[b], minimums[b], r1s[b], s1s[b]);
-        final BiFunction<Integer, Double, Double> f2 = (b, v) -> toLinear.andThen(linear -> linear.apply(v))
-                .apply(r1s[b], s1s[b], r2s[b], s2s[b]);
-        final BiFunction<Integer, Double, Double> f3 = (b, v) -> toLinear.andThen(linear -> linear.apply(v))
-                .apply(r2s[b], s2s[b], maximums[b], maximums[b]);
+        final List<Function<Double, Double>> f1s = IntStream.range(0, stats.length)
+                .mapToObj(b -> toLinear(minimums[b], minimums[b], r1s[b], s1s[b]))
+                .collect(Collectors.toList());
+        final List<Function<Double, Double>> f2s = IntStream.range(0, stats.length)
+                .mapToObj(b -> toLinear(r1s[b], s1s[b], r2s[b], s2s[b]))
+                .collect(Collectors.toList());
+        final List<Function<Double, Double>> f3s = IntStream.range(0, stats.length)
+                .mapToObj(b -> toLinear(r2s[b], s2s[b], maximums[b], maximums[b]))
+                .collect(Collectors.toList());
 
-        final BiFunction<Integer, Double, Double> newValueFunction = parted(f1, minimums, f2, maximums, f3);
+        final List<Function<Double, Double>> partedFunctions = IntStream.range(0, stats.length)
+                .mapToObj(b -> parted(f1s.get(b), minimums[b], f2s.get(b), maximums[b], f3s.get(b)))
+                .collect(Collectors.toList());
+        final BiFunction<Integer, Double, Double> newValueFunction = (b, v) -> partedFunctions.get(b).apply(v);
         return ImageManipulationHelper.createApplying(image, (x, y, b, v) -> newValueFunction.apply(b, v));
     }
 
@@ -142,39 +159,33 @@ public class HistogramServiceImpl implements HistogramService {
      *
      * @return A {@link QuadFunction} that takes two points (in x1, y2, x2, y2 format), and builds a linear function.
      */
-    private static QuadFunction<Double, Double, Double, Double, Function<Double, Double>> toLinear() {
-        return (x1, y1, x2, y2) -> {
-            final double m = (y2 - y1) / (x2 - x1);
-            final double b = y1 - m * x1;
-            return x -> m * x + b;
-        };
+    private static Function<Double, Double> toLinear(double x1, double y1, double x2, double y2) {
+        final double m = (y2 - y1) / (x2 - x1);
+        final double b = y1 - m * x1;
+        return x -> m * x + b;
     }
 
     /**
-     * Builds a parted {@link BiFunction} from the given {@link BiFunction}s.
-     * The integer argument in all {@link BiFunction} represents an array index,
-     * that will be used in the given {@code lowerLimits} and {@code upperLimits}.
+     * Builds a parted {@link Function} from the given {@link Function}s.
      *
-     * @param f1          The function that takes place before the lower limit.
-     * @param lowerLimits The lower limits.
-     * @param f2          The function that takes place between lower and upper limits.
-     * @param upperLimits The upper limits.
-     * @param f3          The function that takes place after the upper limit.
-     * @return
+     * @param f1         The function that takes place before the lower limit.
+     * @param lowerLimit The lower limit.
+     * @param f2         The function that takes place between lower and upper limits.
+     * @param upperLimit The upper limit.
+     * @param f3         The function that takes place after the upper limit.
+     * @return The parted {@link Function}.
      */
-    private static BiFunction<Integer, Double, Double> parted(BiFunction<Integer, Double, Double> f1,
-                                                              double lowerLimits[],
-                                                              BiFunction<Integer, Double, Double> f2,
-                                                              double upperLimits[],
-                                                              BiFunction<Integer, Double, Double> f3) {
-        return (b, v) -> {
-            if (v <= lowerLimits[b]) {
-                return f1.apply(b, v);
+    private static Function<Double, Double> parted(Function<Double, Double> f1, double lowerLimit,
+                                                   Function<Double, Double> f2, double upperLimit,
+                                                   Function<Double, Double> f3) {
+        return v -> {
+            if (v <= lowerLimit) {
+                return f1.apply(v);
             }
-            if (v >= upperLimits[b]) {
-                return f3.apply(b, v);
+            if (v >= upperLimit) {
+                return f3.apply(v);
             }
-            return f2.apply(b, v);
+            return f2.apply(v);
         };
     }
 
