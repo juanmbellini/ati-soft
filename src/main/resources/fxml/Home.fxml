@@ -46,7 +46,8 @@
                 <MenuItem mnemonicParsing="false" text="Normalize" onAction="#normalize"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Negative" onAction="#negative"/>
-                <MenuItem mnemonicParsing="false" text="Threshold..." onAction="#threshold"/>
+                <SeparatorMenuItem/>
+                <MenuItem mnemonicParsing="false" text="Manual Threshold..." onAction="#threshold"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Increase contrast..." onAction="#increaseContrast"/>
                 <MenuItem mnemonicParsing="false" text="Equalize" onAction="#equalize"/>

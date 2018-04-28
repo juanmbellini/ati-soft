@@ -5,11 +5,29 @@ import ar.edu.itba.ati.ati_soft.utils.QuadFunction;
 import org.springframework.util.Assert;
 
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 /**
  * Helper class that implements methods that help services.
  */
 /* package */ class ImageManipulationHelper {
+
+
+    /**
+     * Normalizes the given {@link Image} to have pixel values between 0.0 and 255.0.
+     *
+     * @param original The original {@link Image}.
+     * @return The normalized {@link Image}.
+     */
+    /* package */
+    static Image normalize(Image original) {
+        final MinAndMaxContainer container = new MinAndMaxContainer(original).initialize();
+        final Double[] minimums = container.getMinimums();
+        final Double[] maximums = container.getMaximums();
+        final double[] factors = IntStream.range(0, original.getBands())
+                .mapToDouble(i -> 255 / (maximums[i] - minimums[i])).toArray();
+        return createApplying(original, (x, y, i, value) -> (value - minimums[i]) * factors[i]);
+    }
 
     /**
      * Creates a new {@link Image} using as base the given {@code original} {@link Image},

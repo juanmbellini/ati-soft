@@ -62,15 +62,6 @@ public interface ImageOperationService {
     Image gammaPower(Image image, double gamma);
 
     /**
-     * Calculates the threshold function of the given {@link Image}.
-     *
-     * @param image The {@link Image} whose threshold must be calculated.
-     * @param u     The threshold (i.e value that indicates where the separation is done).
-     * @return The threshold {@link Image}.
-     */
-    Image threshold(Image image, int u);
-
-    /**
      * Calculates the negative {@link Image} for the given one.
      *
      * @param image The {@link Image} whose negative must be calculated.
