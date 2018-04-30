@@ -1,6 +1,7 @@
 package ar.edu.itba.ati.ati_soft.service;
 
 import ar.edu.itba.ati.ati_soft.interfaces.ImageThresholdService;
+import ar.edu.itba.ati.ati_soft.models.Histogram;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import org.springframework.stereotype.Service;
 
@@ -30,11 +31,59 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
         int actualT = 255 / 2; // This should always be the middle value as the image is normalized
         boolean shouldContinue = true;
         while (shouldContinue) {
-            final int newT = calculateThreshold(prepared, actualT);
+            final int newT = calculateNewThreshold(prepared, actualT);
             shouldContinue = Math.abs(actualT - newT) >= deltaT;
             actualT = newT;
         }
         return ImageManipulationHelper.threshold(prepared, actualT);
+    }
+
+    @Override
+    public Image otsuThreshold(Image image) {
+        final Image prepared = prepareImage(image);
+        final Histogram histogram = ImageManipulationHelper.getHistogram(prepared, 0);
+        final int min = histogram.minCategory();
+        final int max = histogram.maxCategory();
+        final Map<Integer, Double> cumulativeMeans = IntStream.range(min, max + 1)
+                .boxed()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        t -> IntStream.range(min, t + 1).mapToDouble(i -> i * histogram.getFrequency(i)).sum())
+                );
+        final double globalMean = cumulativeMeans.get(max);
+        final Map<Integer, Double> cumulativeFrequencies = IntStream.range(min, max + 1)
+                .boxed()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        t -> IntStream.range(min, t + 1).mapToDouble(histogram::getFrequency).sum())
+                );
+        final Map<Integer, Double> variances =
+                IntStream.range(min, max + 1)
+                        .boxed()
+                        .map(t -> {
+                            final double class1Probability = cumulativeFrequencies.get(t);
+                            // In case the probability is 0 or 1,
+                            // then all pixels are in one class, so the variance is zero.
+                            if (class1Probability == 0 || class1Probability == 1) {
+                                return new AbstractMap.SimpleEntry<>(t, 0d); // TODO: make sure this is OK
+                            }
+                            final double class2Probability = 1 - class1Probability;
+                            final double class1Mean = cumulativeMeans.get(t);
+                            final double numerator = Math.pow(globalMean * class1Probability - class1Mean, 2);
+                            final double denominator = class1Probability * class2Probability;
+                            return new AbstractMap.SimpleEntry<>(t, numerator / denominator);
+                        })
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        final double maxVariance = variances.values().stream()
+                .max(Comparator.comparingDouble(d -> d))
+                .orElseThrow(() -> new RuntimeException("This should not happen"));
+        final List<Integer> possibleThresholds = variances.entrySet().stream()
+                .filter(e -> e.getValue() == maxVariance)
+                .map(Map.Entry::getKey)
+                .sorted()
+                .collect(Collectors.toList());
+        // Use the median as the selected threshold
+        return ImageManipulationHelper.threshold(prepared, possibleThresholds.get(possibleThresholds.size() / 2));
     }
 
     /**
@@ -55,7 +104,7 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
      * @param actualT The actual threshold (i.e used to calculate the new value).
      * @return The new threshold value.
      */
-    private static int calculateThreshold(Image image, int actualT) {
+    private static int calculateNewThreshold(Image image, int actualT) {
         return IntStream.range(0, image.getWidth())
                 .mapToObj(x -> IntStream.range(0, image.getHeight()).
                         boxed()

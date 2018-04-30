@@ -1,11 +1,15 @@
 package ar.edu.itba.ati.ati_soft.service;
 
+import ar.edu.itba.ati.ati_soft.models.Histogram;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import ar.edu.itba.ati.ati_soft.utils.QuadFunction;
 import ar.edu.itba.ati.ati_soft.utils.TriFunction;
 import org.springframework.util.Assert;
 
 import java.util.Arrays;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -105,6 +109,25 @@ import java.util.stream.IntStream;
         return newImage;
     }
 
+    /**
+     * Calculates the {@link Histogram} of the given {@link Image}, for the given {@code band}.
+     *
+     * @param image The {@link Image} whose {@link Histogram} will be calculated.
+     * @param band  The band to be calculated.
+     * @return The calculated {@link Histogram}.
+     */
+    /* package */
+    static Histogram getHistogram(Image image, int band) {
+        final Map<Integer, Long> values = IntStream.range(0, image.getWidth())
+                .parallel()
+                .mapToObj(x -> IntStream.range(0, image.getHeight())
+                        .parallel()
+                        .mapToObj(y -> image.getSample(x, y, band)))
+                .flatMap(Function.identity())
+                .map(Double::intValue)
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+        return new Histogram(values);
+    }
 
     /**
      * Calculates the euclidean distance of the given {@code pixel}.

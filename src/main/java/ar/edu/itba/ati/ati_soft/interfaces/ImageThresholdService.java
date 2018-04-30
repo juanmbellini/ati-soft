@@ -25,4 +25,13 @@ public interface ImageThresholdService {
      * @return The threshold {@link Image}.
      */
     Image globalThreshold(Image image, int deltaT);
+
+    /**
+     * Creates a new {@link Image} applying the threshold function,
+     * calculating the threshold value using Otsu's threshold method.
+     *
+     * @param image  The {@link Image} to which the threshold function will be applied.
+     * @return The threshold {@link Image}.
+     */
+    Image otsuThreshold(Image image);
 }

@@ -375,6 +375,11 @@ public class HomeController {
     }
 
     @FXML
+    public void otsuThreshold() {
+        oneImageOperationAction(imageThresholdService::otsuThreshold, "Otsu threshold", Function.identity());
+    }
+
+    @FXML
     public void equalize() {
         oneImageOperationAction(histogramService::equalize, "image equalization",
                 imageOperationService::normalize);

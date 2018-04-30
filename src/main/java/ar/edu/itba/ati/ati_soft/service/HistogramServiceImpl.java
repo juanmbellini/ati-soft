@@ -29,7 +29,7 @@ public class HistogramServiceImpl implements HistogramService {
         return IntStream.range(0, image.getBands())
                 .parallel()
                 .boxed()
-                .collect(Collectors.toMap(b -> b, b -> getHistogram(image, b)));
+                .collect(Collectors.toMap(b -> b, b -> ImageManipulationHelper.getHistogram(image, b)));
     }
 
     @Override
@@ -52,7 +52,7 @@ public class HistogramServiceImpl implements HistogramService {
 
     @Override
     public Image increaseContrast(Image image) {
-        final StatsContainer[] stats = StatsHelper.getStats(image, HistogramServiceImpl::getHistogram);
+        final StatsContainer[] stats = StatsHelper.getStats(image, ImageManipulationHelper::getHistogram);
         final double minimums[] = Arrays.stream(stats)
                 .mapToDouble(StatsContainer::getMin)
                 .toArray();
@@ -115,24 +115,6 @@ public class HistogramServiceImpl implements HistogramService {
                 (x, y, b, v) -> (double) cumulativeHistograms.get(b).getCount((v.intValue())));
     }
 
-    /**
-     * Calculates the {@link Histogram} of the given {@link Image}, for the given {@code band}.
-     *
-     * @param image The {@link Image} whose {@link Histogram} will be calculated.
-     * @param band  The band to be calculated.
-     * @return The calculated {@link Histogram}.
-     */
-    private static Histogram getHistogram(Image image, int band) {
-        final Map<Integer, Long> values = IntStream.range(0, image.getWidth())
-                .parallel()
-                .mapToObj(x -> IntStream.range(0, image.getHeight())
-                        .parallel()
-                        .mapToObj(y -> image.getSample(x, y, band)))
-                .flatMap(Function.identity())
-                .map(Double::intValue)
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-        return new Histogram(values);
-    }
 
     /**
      * Calculates the cumulative distribution for the given frequencies.
