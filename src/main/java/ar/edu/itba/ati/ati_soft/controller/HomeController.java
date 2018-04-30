@@ -367,6 +367,14 @@ public class HomeController {
     }
 
     @FXML
+    public void globalThreshold() {
+        getNumber("Delta T value for Global Threshold", "", "Insert the delta T", Integer::parseInt)
+                .ifPresent(deltaT ->
+                        oneImageOperationAction(image -> imageThresholdService.globalThreshold(image, deltaT),
+                                "global threshold", Function.identity()));
+    }
+
+    @FXML
     public void equalize() {
         oneImageOperationAction(histogramService::equalize, "image equalization",
                 imageOperationService::normalize);
