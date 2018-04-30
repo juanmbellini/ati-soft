@@ -52,12 +52,15 @@ import java.util.stream.IntStream;
      * Converts the given {@link Image} into a gray image.
      *
      * @param image The {@link Image} to be converted.
-     * @return The converted {@link Image}.+
+     * @return A new instance of {@link Image}, which is the converted {@link Image} of the given one.
      * @implNote This method uses the euclidean distance of each pixel
      * (being the space the one formed by all the image's bands).
      */
     /* package */
     static Image toGray(Image image) {
+        if (image.getBands() == 1) {
+            return image.copy(); // Called of the method expects a new instance
+        }
         return createApplying(image, (x, y, b, v) -> getEuclideanDistance(image.getPixel(x, y)));
     }
 
