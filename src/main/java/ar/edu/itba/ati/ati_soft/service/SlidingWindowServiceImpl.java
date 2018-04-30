@@ -110,7 +110,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         final int center = windowLength / 2;
         mask[center][center] *= 1 - size;
 
-        return applyFilter(image, mask.length,
+        return applyFilter(ImageManipulationHelper.toGray(image), mask.length,
                 array -> IntStream.range(0, array.length)
                         .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
                         .flatMap(Function.identity())
@@ -143,7 +143,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         final int width = image.getWidth();
         final int height = image.getHeight();
         final int bands = image.getBands();
-        final Image newImage = image.copy();// Image.trash(width, height, bands);
+        final Image newImage = Image.homogeneous(width, height, bands, 0d);
         final Double[][] window = new Double[windowLength][windowLength];
         for (int x = margin; x < width - margin; x++) {
             for (int y = margin; y < height - margin; y++) {
