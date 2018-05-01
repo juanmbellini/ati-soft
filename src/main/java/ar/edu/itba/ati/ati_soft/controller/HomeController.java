@@ -63,6 +63,11 @@ public class HomeController {
     private final ImageOperationService imageOperationService;
 
     /**
+     * An {@link ImageThresholdService} used to create binary images.
+     */
+    private final ImageThresholdService imageThresholdService;
+
+    /**
      * A {@link NoiseGenerationService} used to pollute images.
      */
     private final NoiseGenerationService noiseGenerationService;
@@ -171,11 +176,13 @@ public class HomeController {
     @Autowired
     public HomeController(ImageIOService imageIOService,
                           ImageOperationService imageOperationService,
+                          ImageThresholdService imageThresholdService,
                           NoiseGenerationService noiseGenerationService,
                           SlidingWindowService slidingWindowService,
                           HistogramService histogramService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
+        this.imageThresholdService = imageThresholdService;
         this.noiseGenerationService = noiseGenerationService;
         this.slidingWindowService = slidingWindowService;
         this.histogramService = histogramService;
@@ -355,8 +362,21 @@ public class HomeController {
     @FXML
     public void threshold() {
         getNumber("Threshold value", "", "Insert the threshold", Integer::parseInt)
-                .ifPresent(u -> oneImageOperationAction(image -> imageOperationService.threshold(image, u),
-                        "threshold function", imageOperationService::normalize));
+                .ifPresent(value -> oneImageOperationAction(image -> imageThresholdService.manualThreshold(image, value),
+                        "manual threshold function", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void globalThreshold() {
+        getNumber("Delta T value for Global Threshold", "", "Insert the delta T", Integer::parseInt)
+                .ifPresent(deltaT ->
+                        oneImageOperationAction(image -> imageThresholdService.globalThreshold(image, deltaT),
+                                "global threshold", Function.identity()));
+    }
+
+    @FXML
+    public void otsuThreshold() {
+        oneImageOperationAction(imageThresholdService::otsuThreshold, "Otsu threshold", Function.identity());
     }
 
     @FXML
