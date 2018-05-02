@@ -10,7 +10,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Function;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
  * Concrete implementation of {@link SlidingWindowService}.
@@ -121,16 +120,12 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
     @Override
     public Image prewittBorderDetectionMethod(Image image) {
-        final Image grayImage = ImageManipulationHelper.toGray(image);
-        return Stream.of(PrewittMask.TOP, PrewittMask.RIGHT)
-                .parallel()
-                .map(PrewittMask::getMask)
-                .map(mask -> filterWithMask(grayImage, mask))
-                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> v * v))
-                .reduce(((img1, img2) ->
-                        ImageManipulationHelper.createApplying(img1, (x, y, b, v) -> v + img2.getSample(x, y, b))))
-                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.sqrt(v)))
-                .orElseThrow(() -> new RuntimeException("This should not happen"));
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), PrewittMask.TOP, PrewittMask.RIGHT);
+    }
+
+    @Override
+    public Image sobelBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), SobelMask.TOP, SobelMask.RIGHT);
     }
 
 
@@ -139,9 +134,10 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
     // ================================================================================================================
 
     private final static Double[][] PREWITT_MASK = {{1d, 1d, 1d}, {0d, 0d, 0d}, {-1d, -1d, -1d}};
+    private final static Double[][] SOBEL_MASK = {{1d, 2d, 1d}, {0d, 0d, 0d}, {-1d, -2d, -1d}};
 
     /**
-     * Enum containing the Prewitt mask in all directions.
+     * Enum containing the Prewitt'S mask in all directions.
      */
     private enum PrewittMask implements MaskHelper.MaskContainer {
         TOP(PREWITT_MASK),
@@ -178,10 +174,69 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         }
     }
 
+    /**
+     * Enum containing the Sobel's mask in all directions.
+     */
+    private enum SobelMask implements MaskHelper.MaskContainer {
+        TOP(SOBEL_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        SobelMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
 
     // ================================================================================================================
     // Helpers
     // ================================================================================================================
+
+    /**
+     * Performs a multi-mask filtering, according to the given
+     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s
+     *
+     * @param image          The {@link Image} to be filtered.
+     * @param maskContainers The {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}
+     *                       that holds the masks to be applied.
+     * @return The filtered image.
+     */
+    private static Image multiMaskFilteringWithModulus(Image image, MaskHelper.MaskContainer... maskContainers) {
+        return Arrays.stream(maskContainers)
+                .parallel()
+                .map(MaskHelper.MaskContainer::getMask)
+                .map(mask -> filterWithMask(image, mask))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> v * v))
+                .reduce(((img1, img2) ->
+                        ImageManipulationHelper.createApplying(img1, (x, y, b, v) -> v + img2.getSample(x, y, b))))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.sqrt(v)))
+                .orElseThrow(() -> new RuntimeException("This should not happen"));
+    }
 
     /**
      * Applies a filter to the given {@link Image}, using the given {@code mask}.

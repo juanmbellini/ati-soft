@@ -64,10 +64,18 @@ public interface SlidingWindowService {
     Image applyHighPassFilter(Image image, int windowLength);
 
     /**
-     * Returns a borders {@link Image} of the given {@code image}, applying the Prewitt gradient operator.
+     * Returns a borders {@link Image} of the given {@code image}, applying the Prewitt's gradient operator.
      *
      * @param image The {@link Image} to which the borders will be detected.
      * @return The borders {@link Image}.
      */
     Image prewittBorderDetectionMethod(Image image);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Sobel's gradient operator.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @return The borders {@link Image}.
+     */
+    Image sobelBorderDetectionMethod(Image image);
 }
