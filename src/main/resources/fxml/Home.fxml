@@ -90,6 +90,12 @@
                           onAction="#borderDetectionWithLaplaceMethod"/>
                 <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method and slope evaluation"
                           onAction="#borderDetectionWithLaplaceMethodAndSlopeEvaluation"/>
+
+                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace of Gaussian method"
+                          onAction="#borderDetectionWithLaplaceOfGaussianMethod"/>
+                <MenuItem mnemonicParsing="false"
+                          text="Detect borders using Laplace of Gaussian method and slope evaluation"
+                          onAction="#borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>

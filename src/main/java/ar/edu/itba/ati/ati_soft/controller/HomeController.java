@@ -544,6 +544,26 @@ public class HomeController {
                         "border detection with Laplace's", imageOperationService::normalize));
     }
 
+    @FXML
+    public void borderDetectionWithLaplaceOfGaussianMethod() {
+        getNumber("Standard deviation for Laplace of Gaussian", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image ->
+                                slidingWindowService.laplaceOfGaussianMethod(image, sigma),
+                        "border detection with Laplace's", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation() {
+        getNumber("Standard deviation for Laplace of Gaussian", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> getNumber("Slope threshold for Laplace method", "",
+                        "Insert the threshold", Double::parseDouble)
+                        .ifPresent(threshold -> oneImageOperationAction(image -> slidingWindowService
+                                        .laplaceOfGaussianWithSlopeEvaluation(image, sigma, threshold),
+                                "border detection with Laplace's", imageOperationService::normalize)));
+    }
+
     // ======================================
     // View actions
     // ======================================

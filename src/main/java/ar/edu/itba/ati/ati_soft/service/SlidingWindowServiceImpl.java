@@ -160,6 +160,16 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         return laplaceMethod(image, (prev, actual) -> Math.abs(prev - actual) >= slopeThreshold);
     }
 
+    @Override
+    public Image laplaceOfGaussianMethod(Image image, double sigma) {
+        return laplaceOfGaussianMethod(image, sigma, (prev, actual) -> true);
+    }
+
+    @Override
+    public Image laplaceOfGaussianWithSlopeEvaluation(Image image, double sigma, double slopeThreshold) {
+        return laplaceOfGaussianMethod(image, sigma, (prev, actual) -> Math.abs(prev - actual) >= slopeThreshold);
+    }
+
     // ================================================================================================================
     // Masks
     // ================================================================================================================
@@ -382,14 +392,50 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
      * @return The processed {@link Image}.
      */
     private static Image laplaceMethod(Image image, BiFunction<Double, Double, Boolean> acceptSlope) {
-        final Image maskImage = filterWithMask(ImageManipulationHelper.toGray(image), LAPLACE_MASK);
+        return secondDerivativeMethod(image, LAPLACE_MASK, acceptSlope);
+    }
+
+    /**
+     * Applies the Laplace method for border detection.
+     *
+     * @param image       The {@link Image} to which the method will be applied.
+     * @param acceptSlope A {@link BiFunction} that takes to contiguous pixels, calculates the slope,
+     *                    and tells whether this slope is acceptable (i.e can be considered a border).
+     * @return The processed {@link Image}.
+     */
+    private static Image laplaceOfGaussianMethod(Image image, double sigma,
+                                                 BiFunction<Double, Double, Boolean> acceptSlope) {
+        Assert.isTrue(sigma > 0, "The standard deviation must be positive");
+        final int margin = (int) (sigma * 3);
+        final double variance = sigma * sigma; // Avoid recalculating this
+        final double factor = -1 / (Math.sqrt(2 * Math.PI) * variance * sigma); // Avoid recalculating this
+        final Double[][] mask = IntStream.range(-margin, margin + 1)
+                .mapToObj(x -> IntStream.range(-margin, margin + 1)
+                        .mapToObj(y -> (x * x + y * y) / variance)
+                        .map(value -> factor * (2 - value) * Math.exp(-value / 2))
+                        .toArray(Double[]::new))
+                .toArray(Double[][]::new);
+        return secondDerivativeMethod(image, mask, acceptSlope);
+    }
+
+    /**
+     * Applies the a second derivative method for border detection.
+     *
+     * @param image       The {@link Image} to which the method will be applied.
+     * @param mask        The mask to be applied.
+     * @param acceptSlope A {@link BiFunction} that takes to contiguous pixels, calculates the slope,
+     *                    and tells whether this slope is acceptable (i.e can be considered a border).
+     * @return The processed {@link Image}.
+     */
+    private static Image secondDerivativeMethod(Image image, Double[][] mask,
+                                                BiFunction<Double, Double, Boolean> acceptSlope) {
+        final Image maskImage = filterWithMask(ImageManipulationHelper.toGray(image), mask);
         final Supplier<Image> emptyImageSupplier =
                 () -> Image.empty(maskImage.getWidth(), maskImage.getHeight(), maskImage.getBands());
 
         final Image zeroCrossByColumn = ImageManipulationHelper.createApplying(emptyImageSupplier,
                 (x, y, b) -> borderPixel(0, maskImage.getWidth() - 1, x,
                         position -> maskImage.getSample(position, y, b), acceptSlope));
-
         final Image zeroCrossByRow = ImageManipulationHelper.createApplying(emptyImageSupplier,
                 (x, y, b) -> borderPixel(0, maskImage.getHeight() - 1, y,
                         position -> maskImage.getSample(x, position, b), acceptSlope));
