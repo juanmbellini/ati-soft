@@ -14,10 +14,8 @@
         <MenuBar BorderPane.alignment="CENTER">
             <Menu mnemonicParsing="false" text="File">
                 <Menu mnemonicParsing="false" text="New">
-                    <items>
-                        <MenuItem mnemonicParsing="false" text="Homogeneous image... "
-                                  onAction="#newHomogeneousImage" accelerator="Shortcut+N"/>
-                    </items>
+                    <MenuItem mnemonicParsing="false" text="Homogeneous image... "
+                              onAction="#newHomogeneousImage" accelerator="Shortcut+N"/>
                 </Menu>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Open"
@@ -32,70 +30,97 @@
                 <MenuItem mnemonicParsing="false" text="Close"
                           onAction="#closeApplication" accelerator="Shortcut+Q"/>
             </Menu>
+
             <Menu mnemonicParsing="false" text="Edit">
                 <MenuItem mnemonicParsing="false" text="Undo" onAction="#undo" accelerator="Shortcut+Z"/>
                 <MenuItem mnemonicParsing="false" text="Redo" onAction="#redo" accelerator="Shortcut+Shift+Z"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" text="Sum..." onAction="#sum"/>
-                <MenuItem mnemonicParsing="false" text="Subtract..." onAction="#subtract"/>
-                <MenuItem mnemonicParsing="false" text="Multiply..." onAction="#multiply"/>
-                <MenuItem mnemonicParsing="false" text="Multiply by scalar..." onAction="#multiplyByScalar"/>
-                <MenuItem mnemonicParsing="false" text="Dynamic Range Compression"
-                          onAction="#dynamicRangeCompression"/>
-                <MenuItem mnemonicParsing="false" text="Gamma power..." onAction="#gammaPower"/>
-                <MenuItem mnemonicParsing="false" text="Normalize" onAction="#normalize"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" text="Negative" onAction="#negative"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" text="Manual Threshold..." onAction="#threshold"/>
-                <MenuItem mnemonicParsing="false" text="Global Threshold..." onAction="#globalThreshold"/>
-                <MenuItem mnemonicParsing="false" text="Otsu's Threshold..." onAction="#otsuThreshold"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" text="Increase contrast..." onAction="#increaseContrast"/>
-                <MenuItem mnemonicParsing="false" text="Equalize" onAction="#equalize"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" text="Add Additive Gaussian Noise..."
-                          onAction="#additiveGaussianNoise"/>
-                <MenuItem mnemonicParsing="false" text="Add Multiplicative Rayleigh Noise..."
-                          onAction="#multiplicativeRayleighNoise"/>
-                <MenuItem mnemonicParsing="false" text="Add Multiplicative Exponential Noise..."
-                          onAction="#multiplicativeExponentialNoise"/>
-                <MenuItem mnemonicParsing="false" text="Add Salt and Pepper Noise..."
-                          onAction="#saltAndPepperNoise"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" text="Apply mean filter..."
-                          onAction="#meanFilter"/>
-                <MenuItem mnemonicParsing="false" text="Apply median filter..."
-                          onAction="#medianFilter"/>
-                <MenuItem mnemonicParsing="false" text="Apply weighted median filter..."
-                          onAction="#weightedMedianFilter"/>
-                <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
-                          onAction="#gaussianFilter"/>
-                <SeparatorMenuItem/>
-                <MenuItem mnemonicParsing="false" text="Apply high-pass filter..."
-                          onAction="#highPassFilter"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's gradient operator"
-                          onAction="#borderDetectionWithPrewittGradientOperator"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's gradient operator"
-                          onAction="#borderDetectionWithSobelGradientOperator"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Anonymous's max. direction"
-                          onAction="#borderDetectionWithAnonymousMaxDirection"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Kirsh's max. direction"
-                          onAction="#borderDetectionWithKirshMaxDirection"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's max. direction"
-                          onAction="#borderDetectionWithPrewittMaxDirection"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's max. direction"
-                          onAction="#borderDetectionWithSobelMaxDirection"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method"
-                          onAction="#borderDetectionWithLaplaceMethod"/>
-                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method and slope evaluation"
-                          onAction="#borderDetectionWithLaplaceMethodAndSlopeEvaluation"/>
 
-                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace of Gaussian method"
-                          onAction="#borderDetectionWithLaplaceOfGaussianMethod"/>
-                <MenuItem mnemonicParsing="false"
-                          text="Detect borders using Laplace of Gaussian method and slope evaluation"
-                          onAction="#borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation"/>
+                <SeparatorMenuItem/>
+
+                <Menu mnemonicParsing="false" text="Simple operations">
+                    <MenuItem mnemonicParsing="false" text="Sum..." onAction="#sum"/>
+                    <MenuItem mnemonicParsing="false" text="Subtract..." onAction="#subtract"/>
+                    <MenuItem mnemonicParsing="false" text="Multiply..." onAction="#multiply"/>
+                    <MenuItem mnemonicParsing="false" text="Multiply by scalar..." onAction="#multiplyByScalar"/>
+                    <MenuItem mnemonicParsing="false" text="Dynamic Range Compression"
+                              onAction="#dynamicRangeCompression"/>
+                    <MenuItem mnemonicParsing="false" text="Gamma power..." onAction="#gammaPower"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false" text="Normalize" onAction="#normalize"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false" text="Negative" onAction="#negative"/>
+                </Menu>
+
+                <SeparatorMenuItem/>
+
+                <Menu mnemonicParsing="false" text="Threshold">
+                    <MenuItem mnemonicParsing="false" text="Manual Threshold..." onAction="#threshold"/>
+                    <MenuItem mnemonicParsing="false" text="Global Threshold..." onAction="#globalThreshold"/>
+                    <MenuItem mnemonicParsing="false" text="Otsu's Threshold..." onAction="#otsuThreshold"/>
+                </Menu>
+
+                <SeparatorMenuItem/>
+
+                <Menu mnemonicParsing="false" text="Contrast">
+                    <MenuItem mnemonicParsing="false" text="Increase contrast..." onAction="#increaseContrast"/>
+                    <MenuItem mnemonicParsing="false" text="Equalize" onAction="#equalize"/>
+                </Menu>
+
+                <SeparatorMenuItem/>
+
+                <Menu mnemonicParsing="false" text="Noise">
+                    <MenuItem mnemonicParsing="false" text="Add Additive Gaussian Noise..."
+                              onAction="#additiveGaussianNoise"/>
+                    <MenuItem mnemonicParsing="false" text="Add Multiplicative Rayleigh Noise..."
+                              onAction="#multiplicativeRayleighNoise"/>
+                    <MenuItem mnemonicParsing="false" text="Add Multiplicative Exponential Noise..."
+                              onAction="#multiplicativeExponentialNoise"/>
+                    <MenuItem mnemonicParsing="false" text="Add Salt and Pepper Noise..."
+                              onAction="#saltAndPepperNoise"/>
+                </Menu>
+
+                <SeparatorMenuItem/>
+
+                <Menu mnemonicParsing="false" text="Filters">
+                    <MenuItem mnemonicParsing="false" text="Apply mean filter..."
+                              onAction="#meanFilter"/>
+                    <MenuItem mnemonicParsing="false" text="Apply median filter..."
+                              onAction="#medianFilter"/>
+                    <MenuItem mnemonicParsing="false" text="Apply weighted median filter..."
+                              onAction="#weightedMedianFilter"/>
+                    <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
+                              onAction="#gaussianFilter"/>
+                </Menu>
+
+                <SeparatorMenuItem/>
+
+                <Menu mnemonicParsing="false" text="Border detection">
+                    <MenuItem mnemonicParsing="false" text="Apply high-pass filter..." onAction="#highPassFilter"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's gradient operator"
+                              onAction="#borderDetectionWithPrewittGradientOperator"/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's gradient operator"
+                              onAction="#borderDetectionWithSobelGradientOperator"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Anonymous's max. direction"
+                              onAction="#borderDetectionWithAnonymousMaxDirection"/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Kirsh's max. direction"
+                              onAction="#borderDetectionWithKirshMaxDirection"/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's max. direction"
+                              onAction="#borderDetectionWithPrewittMaxDirection"/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's max. direction"
+                              onAction="#borderDetectionWithSobelMaxDirection"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method"
+                              onAction="#borderDetectionWithLaplaceMethod"/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method and slope evaluation"
+                              onAction="#borderDetectionWithLaplaceMethodAndSlopeEvaluation"/>
+                    <MenuItem mnemonicParsing="false" text="Detect borders using Laplace of Gaussian method"
+                              onAction="#borderDetectionWithLaplaceOfGaussianMethod"/>
+                    <MenuItem mnemonicParsing="false"
+                              text="Detect borders using Laplace of Gaussian method and slope evaluation"
+                              onAction="#borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation"/>
+                </Menu>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
