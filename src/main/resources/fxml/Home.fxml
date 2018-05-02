@@ -71,8 +71,13 @@
                           onAction="#weightedMedianFilter"/>
                 <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
                           onAction="#gaussianFilter"/>
+                <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Apply high-pass filter..."
                           onAction="#highPassFilter"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's gradient operator"
+                          onAction="#borderDetectionWithPrewittGradientOperator"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's gradient operator"
+                          onAction="#borderDetectionWithSobelGradientOperator"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>

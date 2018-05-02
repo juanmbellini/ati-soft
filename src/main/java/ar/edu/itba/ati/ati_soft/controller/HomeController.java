@@ -494,6 +494,18 @@ public class HomeController {
                         "High-Pass Filtering", imageOperationService::normalize));
     }
 
+    @FXML
+    public void borderDetectionWithPrewittGradientOperator() {
+        oneImageOperationAction(slidingWindowService::prewittBorderDetectionMethod,
+                "border detection with Prewitt's gradient operator", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithSobelGradientOperator() {
+        oneImageOperationAction(slidingWindowService::sobelBorderDetectionMethod,
+                "border detection with Sobel's gradient operator", imageOperationService::normalize);
+    }
+
     // ======================================
     // View actions
     // ======================================
