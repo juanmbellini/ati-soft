@@ -530,6 +530,20 @@ public class HomeController {
                 "border detection with Sobel's max direction", imageOperationService::normalize);
     }
 
+    @FXML
+    public void borderDetectionWithLaplaceMethod() {
+        oneImageOperationAction(slidingWindowService::laplaceMethod,
+                "border detection with Laplace's", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceMethodAndSlopeEvaluation() {
+        getNumber("Slope threshold for Laplace method", "", "Insert the threshold", Double::parseDouble)
+                .ifPresent(threshold -> oneImageOperationAction(image ->
+                                slidingWindowService.laplaceMethodWithSlopeEvaluation(image, threshold),
+                        "border detection with Laplace's", imageOperationService::normalize));
+    }
+
     // ======================================
     // View actions
     // ======================================

@@ -86,6 +86,10 @@
                           onAction="#borderDetectionWithPrewittMaxDirection"/>
                 <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's max. direction"
                           onAction="#borderDetectionWithSobelMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method"
+                          onAction="#borderDetectionWithLaplaceMethod"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method and slope evaluation"
+                          onAction="#borderDetectionWithLaplaceMethodAndSlopeEvaluation"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>

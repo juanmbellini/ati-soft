@@ -8,7 +8,9 @@ import org.springframework.util.Assert;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 /**
@@ -130,22 +132,32 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
     @Override
     public Image anonymousMaxDirectionBorderDetectionMethod(Image image) {
-        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), AnonymousMask.values());
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), AnonymousMask.values());
     }
 
     @Override
     public Image kirshMaxDirectionBorderDetectionMethod(Image image) {
-        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), KirshMask.values());
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), KirshMask.values());
     }
 
     @Override
     public Image prewittMaxDirectionBorderDetectionMethod(Image image) {
-        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), PrewittMask.values());
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), PrewittMask.values());
     }
 
     @Override
     public Image sobelMaxDirectionBorderDetectionMethod(Image image) {
-        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), SobelMask.values());
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), SobelMask.values());
+    }
+
+    @Override
+    public Image laplaceMethod(Image image) {
+        return laplaceMethod(image, (prev, actual) -> true);
+    }
+
+    @Override
+    public Image laplaceMethodWithSlopeEvaluation(Image image, double slopeThreshold) {
+        return laplaceMethod(image, (prev, actual) -> Math.abs(prev - actual) >= slopeThreshold);
     }
 
     // ================================================================================================================
@@ -156,6 +168,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
     private final static Double[][] KIRSH_MASK = {{5d, 5d, 5d}, {-3d, 0d, -3d}, {-3d, -3d, -3d}};
     private final static Double[][] PREWITT_MASK = {{1d, 1d, 1d}, {0d, 0d, 0d}, {-1d, -1d, -1d}};
     private final static Double[][] SOBEL_MASK = {{1d, 2d, 1d}, {0d, 0d, 0d}, {-1d, -2d, -1d}};
+    private final static Double[][] LAPLACE_MASK = {{0d, -1d, 0d}, {-1d, 4d, -1d}, {0d, -1d, 0d}};
 
     /**
      * Enum containing the anonymous mask in all directions.
@@ -309,6 +322,37 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         }
     }
 
+    /**
+     * Single-value enum holding the Laplace's mask.
+     */
+    private enum LaplaceMask implements MaskHelper.MaskContainer {
+        MASK(LAPLACE_MASK);
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        LaplaceMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
 
     // ================================================================================================================
     // Helpers
@@ -358,6 +402,84 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                 .reduce(Image.empty(width, height, bands),
                         (img1, img2) -> ImageManipulationHelper.createApplying(img1,
                                 (x, y, b, v) -> Math.max(v, img2.getSample(x, y, b))));
+    }
+
+    /**
+     * Applies the Laplace method for border detection.
+     *
+     * @param image       The {@link Image} to which the method will be applied.
+     * @param acceptSlope A {@link BiFunction} that takes to contiguous pixels, calculates the slope,
+     *                    and tells whether this slope is acceptable (i.e can be considered a border).
+     * @return The processed {@link Image}.
+     */
+    private static Image laplaceMethod(Image image, BiFunction<Double, Double, Boolean> acceptSlope) {
+        final Image maskImage = filterWithMask(ImageManipulationHelper.toGray(image), LAPLACE_MASK);
+        final Supplier<Image> emptyImageSupplier =
+                () -> Image.empty(maskImage.getWidth(), maskImage.getHeight(), maskImage.getBands());
+
+        final Image zeroCrossByColumn = ImageManipulationHelper.createApplying(emptyImageSupplier,
+                (x, y, b) -> borderPixel(0, maskImage.getWidth() - 1, x,
+                        position -> maskImage.getSample(position, y, b), acceptSlope));
+
+        final Image zeroCrossByRow = ImageManipulationHelper.createApplying(emptyImageSupplier,
+                (x, y, b) -> borderPixel(0, maskImage.getHeight() - 1, y,
+                        position -> maskImage.getSample(x, position, b), acceptSlope));
+
+        return ImageManipulationHelper.createApplying(emptyImageSupplier,
+                (x, y, b) -> zeroCrossByColumn.getSample(x, y, b) + zeroCrossByRow.getSample(x, y, b) == 0 ? 0d : 255d);
+    }
+
+    /**
+     * Returns a border pixel (i.e {@code 0.0} if there is no border, or {@code 255.0} if there is border).
+     * This method uses the zero cross technique.
+     *
+     * @param lowerLimit    The lower limit to iterate.
+     * @param upperLimit    The upper limit to iterate.
+     * @param position      The actual position (i.e
+     * @param pixelSupplier The function that returns a pixel according to the actual position.
+     * @return The border pixel.
+     */
+    private static double borderPixel(int lowerLimit, int upperLimit, int position,
+                                      Function<Integer, Double> pixelSupplier,
+                                      BiFunction<Double, Double, Boolean> acceptSlope) {
+        Assert.isTrue(position >= lowerLimit && position <= upperLimit, "The position is out of range");
+
+        if (position == lowerLimit) {
+            return 0d;
+        }
+        final double pixel = pixelSupplier.apply(position);
+        final double prev = pixelSupplier.apply(position - 1);
+        if (position == upperLimit) {
+            return changeOfSign(prev, pixel) && acceptSlope.apply(prev, pixel) ? 255d : 0;
+        }
+        final double next = pixelSupplier.apply(position + 1);
+        return changeOfSign(prev, pixel, next) && acceptSlope.apply(prev, pixel) ? 255d : 0;
+    }
+
+    /**
+     * Checks if there is a change of sign between the three pixels.
+     *
+     * @param prev  The previous pixel.
+     * @param pixel The actual pixel.
+     * @param next  The next pixel.
+     * @return {@code true} if there is change of sign, or {@code false} otherwise.
+     */
+    private static boolean changeOfSign(double prev, double pixel, double next) {
+        if (pixel == 0d) {
+            return changeOfSign(prev, next);
+        }
+        return changeOfSign(prev, pixel);
+    }
+
+    /**
+     * Checks if there is a change of sign between the two pixels.
+     *
+     * @param prev  The previous pixel.
+     * @param pixel The actual pixel.
+     * @return {@code true} if there is change of sign, or {@code false} otherwise.
+     */
+    private static boolean changeOfSign(double prev, double pixel) {
+        return prev * pixel < 0;
     }
 
     /**
