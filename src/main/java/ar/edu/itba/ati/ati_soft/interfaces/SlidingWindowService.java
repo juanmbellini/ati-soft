@@ -80,7 +80,23 @@ public interface SlidingWindowService {
     Image sobelGradientOperatorBorderDetectionMethod(Image image);
 
     /**
-     * Returns a borders {@link Image} of the given {@code image}, applying the Prewitt's max direction.
+     * Returns a borders {@link Image} of the given {@code image}, applying the anonymous mask's max direction.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @return The borders {@link Image}.
+     */
+    Image anonymousMaxDirectionBorderDetectionMethod(Image image);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Kirsh mask's max direction.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @return The borders {@link Image}.
+     */
+    Image kirshMaxDirectionBorderDetectionMethod(Image image);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Prewitt mask's max direction.
      *
      * @param image The {@link Image} to which the borders will be detected.
      * @return The borders {@link Image}.
@@ -88,7 +104,7 @@ public interface SlidingWindowService {
     Image prewittMaxDirectionBorderDetectionMethod(Image image);
 
     /**
-     * Returns a borders {@link Image} of the given {@code image}, applying the Sobel's max direction.
+     * Returns a borders {@link Image} of the given {@code image}, applying the Sobel mask's max direction.
      *
      * @param image The {@link Image} to which the borders will be detected.
      * @return The borders {@link Image}.

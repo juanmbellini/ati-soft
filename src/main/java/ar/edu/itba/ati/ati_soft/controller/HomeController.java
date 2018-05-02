@@ -507,6 +507,18 @@ public class HomeController {
     }
 
     @FXML
+    public void borderDetectionWithAnonymousMaxDirection() {
+        oneImageOperationAction(slidingWindowService::anonymousMaxDirectionBorderDetectionMethod,
+                "border detection with anonymous's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithKirshMaxDirection() {
+        oneImageOperationAction(slidingWindowService::kirshMaxDirectionBorderDetectionMethod,
+                "border detection with Kirsh's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
     public void borderDetectionWithPrewittMaxDirection() {
         oneImageOperationAction(slidingWindowService::prewittMaxDirectionBorderDetectionMethod,
                 "border detection with Prewitt's max direction", imageOperationService::normalize);
