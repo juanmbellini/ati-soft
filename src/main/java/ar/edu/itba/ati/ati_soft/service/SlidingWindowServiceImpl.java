@@ -322,37 +322,6 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         }
     }
 
-    /**
-     * Single-value enum holding the Laplace's mask.
-     */
-    private enum LaplaceMask implements MaskHelper.MaskContainer {
-        MASK(LAPLACE_MASK);
-
-        /**
-         * The mask contained by each value.
-         */
-        private final Double[][] mask;
-
-        /**
-         * Constructor.
-         *
-         * @param mask The mask contained by each value.
-         * @throws IllegalArgumentException If the given {@code mask} is invalid.
-         */
-        LaplaceMask(Double[][] mask) throws IllegalArgumentException {
-            // First, validate the mask.
-            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
-            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
-            // Then, set the mask.
-            this.mask = mask;
-        }
-
-        @Override
-        public Double[][] getMask() {
-            return mask;
-        }
-    }
-
 
     // ================================================================================================================
     // Helpers
