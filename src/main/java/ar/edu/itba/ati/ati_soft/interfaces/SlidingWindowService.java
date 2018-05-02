@@ -110,4 +110,42 @@ public interface SlidingWindowService {
      * @return The borders {@link Image}.
      */
     Image sobelMaxDirectionBorderDetectionMethod(Image image);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Laplace's method.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @return The borders {@link Image}.
+     */
+    Image laplaceMethod(Image image);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Laplace's method,
+     * using slope evaluation in order to accept or discard a zero cross.
+     *
+     * @param image          The {@link Image} to which the borders will be detected.
+     * @param slopeThreshold The minimum slope in a zero cross.
+     * @return The borders {@link Image}.
+     */
+    Image laplaceMethodWithSlopeEvaluation(Image image, double slopeThreshold);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Laplace of Gaussian method.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @param sigma The sigma value for the Gaussian.
+     * @return The borders {@link Image}.
+     */
+    Image laplaceOfGaussianMethod(Image image, double sigma);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Laplace of Gaussian method,
+     * using slope evaluation in order to accept or discard a zero cross.
+     *
+     * @param image          The {@link Image} to which the borders will be detected.
+     * @param sigma          The sigma value for the Gaussian.
+     * @param slopeThreshold The minimum slope in a zero cross.
+     * @return The borders {@link Image}.
+     */
+    Image laplaceOfGaussianWithSlopeEvaluation(Image image, double sigma, double slopeThreshold);
 }

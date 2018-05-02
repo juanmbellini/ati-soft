@@ -9,6 +9,7 @@ import org.springframework.util.Assert;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -100,16 +101,53 @@ import java.util.stream.IntStream;
     /* package */
     static Image createApplying(int width, int height, int bands,
                                 TriFunction<Integer, Integer, Integer, Double> pixelSetter) {
-        final Image newImage = Image.trash(width, height, bands);
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                for (int b = 0; b < bands; b++) {
-                    final double newValue = pixelSetter.apply(x, y, b);
-                    newImage.setSample(x, y, b, newValue);
+        return createApplying(() -> Image.trash(width, height, bands), pixelSetter);
+    }
+
+
+    /**
+     * Creates a new {@link Image}, generating the canvas with the given {@code canvasSupplier},
+     * setting pixels using the given {@code pixelSetter} {@link TriFunction} to each sample.
+     *
+     * @param canvasSupplier A {@link Supplier} of {@link Image}, which will be used to generate the canvas
+     *                       (i.e the {@link Image} to be returned,
+     *                       which in turn will be modified by the given {@link TriFunction}).
+     * @param pixelSetter    The {@link TriFunction} to apply to each pixel,
+     *                       being the first element, the row of the pixel being set,
+     *                       the second element, the column of the pixel being set,
+     *                       the third element, the band being set,
+     *                       The function must return the value to be set.
+     * @return The new {@link Image}.
+     */
+    /* package */
+    static Image createApplying(Supplier<Image> canvasSupplier,
+                                TriFunction<Integer, Integer, Integer, Double> pixelSetter) {
+        final Image canvas = canvasSupplier.get();
+        populate(canvas, pixelSetter);
+        return canvas;
+    }
+
+
+    /**
+     * Populates the given {@code canvas} {@link Image}, according to the given {@link TriFunction}
+     * (which generates the values for the canvas)
+     *
+     * @param canvas      An {@link Image} which will be populated with the {@link TriFunction}.
+     * @param pixelSetter The {@link TriFunction} to apply to each pixel,
+     *                    being the first element, the row of the pixel being set,
+     *                    the second element, the column of the pixel being set,
+     *                    the third element, the band being set,
+     *                    The function must return the value to be set.
+     */
+    /* package */
+    static void populate(Image canvas, TriFunction<Integer, Integer, Integer, Double> pixelSetter) {
+        for (int x = 0; x < canvas.getWidth(); x++) {
+            for (int y = 0; y < canvas.getHeight(); y++) {
+                for (int b = 0; b < canvas.getBands(); b++) {
+                    canvas.setSample(x, y, b, pixelSetter.apply(x, y, b));
                 }
             }
         }
-        return newImage;
     }
 
     /**
