@@ -78,6 +78,14 @@
                           onAction="#borderDetectionWithPrewittGradientOperator"/>
                 <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's gradient operator"
                           onAction="#borderDetectionWithSobelGradientOperator"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Anonymous's max. direction"
+                          onAction="#borderDetectionWithAnonymousMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Kirsh's max. direction"
+                          onAction="#borderDetectionWithKirshMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's max. direction"
+                          onAction="#borderDetectionWithPrewittMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's max. direction"
+                          onAction="#borderDetectionWithSobelMaxDirection"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>

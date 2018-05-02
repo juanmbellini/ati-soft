@@ -119,25 +119,122 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
 
     @Override
-    public Image prewittBorderDetectionMethod(Image image) {
+    public Image prewittGradientOperatorBorderDetectionMethod(Image image) {
         return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), PrewittMask.TOP, PrewittMask.RIGHT);
     }
 
     @Override
-    public Image sobelBorderDetectionMethod(Image image) {
+    public Image sobelGradientOperatorBorderDetectionMethod(Image image) {
         return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), SobelMask.TOP, SobelMask.RIGHT);
     }
 
+    @Override
+    public Image anonymousMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), AnonymousMask.values());
+    }
+
+    @Override
+    public Image kirshMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), KirshMask.values());
+    }
+
+    @Override
+    public Image prewittMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), PrewittMask.values());
+    }
+
+    @Override
+    public Image sobelMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), SobelMask.values());
+    }
 
     // ================================================================================================================
     // Masks
     // ================================================================================================================
 
+    private final static Double[][] ANONYMOUS_MASK = {{1d, 1d, 1d}, {1d, -2d, 1d}, {-1d, -1d, -1d}};
+    private final static Double[][] KIRSH_MASK = {{5d, 5d, 5d}, {-3d, 0d, -3d}, {-3d, -3d, -3d}};
     private final static Double[][] PREWITT_MASK = {{1d, 1d, 1d}, {0d, 0d, 0d}, {-1d, -1d, -1d}};
     private final static Double[][] SOBEL_MASK = {{1d, 2d, 1d}, {0d, 0d, 0d}, {-1d, -2d, -1d}};
 
     /**
-     * Enum containing the Prewitt'S mask in all directions.
+     * Enum containing the anonymous mask in all directions.
+     */
+    private enum AnonymousMask implements MaskHelper.MaskContainer {
+        TOP(ANONYMOUS_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        AnonymousMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
+    /**
+     * Enum containing the Kirsh's mask in all directions.
+     */
+    private enum KirshMask implements MaskHelper.MaskContainer {
+        TOP(KIRSH_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        KirshMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
+    /**
+     * Enum containing the Prewitt's mask in all directions.
      */
     private enum PrewittMask implements MaskHelper.MaskContainer {
         TOP(PREWITT_MASK),
@@ -219,7 +316,8 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
     /**
      * Performs a multi-mask filtering, according to the given
-     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s
+     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s,
+     * applying the modulus between all the generated border images.
      *
      * @param image          The {@link Image} to be filtered.
      * @param maskContainers The {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}
@@ -236,6 +334,30 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                         ImageManipulationHelper.createApplying(img1, (x, y, b, v) -> v + img2.getSample(x, y, b))))
                 .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.sqrt(v)))
                 .orElseThrow(() -> new RuntimeException("This should not happen"));
+    }
+
+    /**
+     * Performs a multi-mask filtering, according to the given
+     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s,
+     * applying the max between all the generated border images.
+     *
+     * @param image          The {@link Image} to be filtered.
+     * @param maskContainers The {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}
+     *                       that holds the masks to be applied.
+     * @return The filtered image.
+     */
+    private static Image multiMaskFilteringWithMax(Image image, MaskHelper.MaskContainer... maskContainers) {
+        final int width = image.getWidth();
+        final int height = image.getHeight();
+        final int bands = image.getBands();
+        return Arrays.stream(maskContainers)
+                .parallel()
+                .map(MaskHelper.MaskContainer::getMask)
+                .map(mask -> filterWithMask(image, mask))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.abs(v)))
+                .reduce(Image.empty(width, height, bands),
+                        (img1, img2) -> ImageManipulationHelper.createApplying(img1,
+                                (x, y, b, v) -> Math.max(v, img2.getSample(x, y, b))));
     }
 
     /**
