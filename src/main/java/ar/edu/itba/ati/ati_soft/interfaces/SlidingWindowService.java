@@ -69,7 +69,7 @@ public interface SlidingWindowService {
      * @param image The {@link Image} to which the borders will be detected.
      * @return The borders {@link Image}.
      */
-    Image prewittBorderDetectionMethod(Image image);
+    Image prewittGradientOperatorBorderDetectionMethod(Image image);
 
     /**
      * Returns a borders {@link Image} of the given {@code image}, applying the Sobel's gradient operator.
@@ -77,5 +77,21 @@ public interface SlidingWindowService {
      * @param image The {@link Image} to which the borders will be detected.
      * @return The borders {@link Image}.
      */
-    Image sobelBorderDetectionMethod(Image image);
+    Image sobelGradientOperatorBorderDetectionMethod(Image image);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Prewitt's max direction.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @return The borders {@link Image}.
+     */
+    Image prewittMaxDirectionBorderDetectionMethod(Image image);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Sobel's max direction.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @return The borders {@link Image}.
+     */
+    Image sobelMaxDirectionBorderDetectionMethod(Image image);
 }

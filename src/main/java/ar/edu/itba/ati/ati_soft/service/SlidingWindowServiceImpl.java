@@ -119,15 +119,24 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
 
     @Override
-    public Image prewittBorderDetectionMethod(Image image) {
+    public Image prewittGradientOperatorBorderDetectionMethod(Image image) {
         return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), PrewittMask.TOP, PrewittMask.RIGHT);
     }
 
     @Override
-    public Image sobelBorderDetectionMethod(Image image) {
+    public Image sobelGradientOperatorBorderDetectionMethod(Image image) {
         return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), SobelMask.TOP, SobelMask.RIGHT);
     }
 
+    @Override
+    public Image prewittMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), PrewittMask.values());
+    }
+
+    @Override
+    public Image sobelMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), SobelMask.values());
+    }
 
     // ================================================================================================================
     // Masks
@@ -219,7 +228,8 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
     /**
      * Performs a multi-mask filtering, according to the given
-     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s
+     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s,
+     * applying the modulus between all the generated border images.
      *
      * @param image          The {@link Image} to be filtered.
      * @param maskContainers The {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}
@@ -236,6 +246,30 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                         ImageManipulationHelper.createApplying(img1, (x, y, b, v) -> v + img2.getSample(x, y, b))))
                 .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.sqrt(v)))
                 .orElseThrow(() -> new RuntimeException("This should not happen"));
+    }
+
+    /**
+     * Performs a multi-mask filtering, according to the given
+     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s,
+     * applying the max between all the generated border images.
+     *
+     * @param image          The {@link Image} to be filtered.
+     * @param maskContainers The {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}
+     *                       that holds the masks to be applied.
+     * @return The filtered image.
+     */
+    private static Image multiMaskFilteringWithMax(Image image, MaskHelper.MaskContainer... maskContainers) {
+        final int width = image.getWidth();
+        final int height = image.getHeight();
+        final int bands = image.getBands();
+        return Arrays.stream(maskContainers)
+                .parallel()
+                .map(MaskHelper.MaskContainer::getMask)
+                .map(mask -> filterWithMask(image, mask))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.abs(v)))
+                .reduce(Image.empty(width, height, bands),
+                        (img1, img2) -> ImageManipulationHelper.createApplying(img1,
+                                (x, y, b, v) -> Math.max(v, img2.getSample(x, y, b))));
     }
 
     /**
