@@ -494,6 +494,76 @@ public class HomeController {
                         "High-Pass Filtering", imageOperationService::normalize));
     }
 
+    @FXML
+    public void borderDetectionWithPrewittGradientOperator() {
+        oneImageOperationAction(slidingWindowService::prewittGradientOperatorBorderDetectionMethod,
+                "border detection with Prewitt's gradient operator", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithSobelGradientOperator() {
+        oneImageOperationAction(slidingWindowService::sobelGradientOperatorBorderDetectionMethod,
+                "border detection with Sobel's gradient operator", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithAnonymousMaxDirection() {
+        oneImageOperationAction(slidingWindowService::anonymousMaxDirectionBorderDetectionMethod,
+                "border detection with anonymous's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithKirshMaxDirection() {
+        oneImageOperationAction(slidingWindowService::kirshMaxDirectionBorderDetectionMethod,
+                "border detection with Kirsh's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithPrewittMaxDirection() {
+        oneImageOperationAction(slidingWindowService::prewittMaxDirectionBorderDetectionMethod,
+                "border detection with Prewitt's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithSobelMaxDirection() {
+        oneImageOperationAction(slidingWindowService::sobelMaxDirectionBorderDetectionMethod,
+                "border detection with Sobel's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceMethod() {
+        oneImageOperationAction(slidingWindowService::laplaceMethod,
+                "border detection with Laplace's", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceMethodAndSlopeEvaluation() {
+        getNumber("Slope threshold for Laplace method", "", "Insert the threshold", Double::parseDouble)
+                .ifPresent(threshold -> oneImageOperationAction(image ->
+                                slidingWindowService.laplaceMethodWithSlopeEvaluation(image, threshold),
+                        "border detection with Laplace's", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceOfGaussianMethod() {
+        getNumber("Standard deviation for Laplace of Gaussian", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image ->
+                                slidingWindowService.laplaceOfGaussianMethod(image, sigma),
+                        "border detection with Laplace's", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation() {
+        getNumber("Standard deviation for Laplace of Gaussian", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> getNumber("Slope threshold for Laplace method", "",
+                        "Insert the threshold", Double::parseDouble)
+                        .ifPresent(threshold -> oneImageOperationAction(image -> slidingWindowService
+                                        .laplaceOfGaussianWithSlopeEvaluation(image, sigma, threshold),
+                                "border detection with Laplace's", imageOperationService::normalize)));
+    }
+
     // ======================================
     // View actions
     // ======================================

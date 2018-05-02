@@ -71,8 +71,31 @@
                           onAction="#weightedMedianFilter"/>
                 <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
                           onAction="#gaussianFilter"/>
+                <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Apply high-pass filter..."
                           onAction="#highPassFilter"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's gradient operator"
+                          onAction="#borderDetectionWithPrewittGradientOperator"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's gradient operator"
+                          onAction="#borderDetectionWithSobelGradientOperator"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Anonymous's max. direction"
+                          onAction="#borderDetectionWithAnonymousMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Kirsh's max. direction"
+                          onAction="#borderDetectionWithKirshMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Prewitt's max. direction"
+                          onAction="#borderDetectionWithPrewittMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Sobel's max. direction"
+                          onAction="#borderDetectionWithSobelMaxDirection"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method"
+                          onAction="#borderDetectionWithLaplaceMethod"/>
+                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace's method and slope evaluation"
+                          onAction="#borderDetectionWithLaplaceMethodAndSlopeEvaluation"/>
+
+                <MenuItem mnemonicParsing="false" text="Detect borders using Laplace of Gaussian method"
+                          onAction="#borderDetectionWithLaplaceOfGaussianMethod"/>
+                <MenuItem mnemonicParsing="false"
+                          text="Detect borders using Laplace of Gaussian method and slope evaluation"
+                          onAction="#borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation"/>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
