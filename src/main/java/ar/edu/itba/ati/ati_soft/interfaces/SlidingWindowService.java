@@ -7,6 +7,11 @@ import ar.edu.itba.ati.ati_soft.models.Image;
  */
 public interface SlidingWindowService {
 
+
+    // ================================================================================================================
+    // Filters
+    // ================================================================================================================
+
     /**
      * Applies a mean filter to the given {@link Image}, using a window with the given {@code windowLength}.
      *
@@ -44,6 +49,11 @@ public interface SlidingWindowService {
      */
     Image applyGaussianFilter(Image image, double standardDeviation);
 
+
+    // ================================================================================================================
+    // Border detection
+    // ================================================================================================================
+
     /**
      * Applies a high pass filter to the given {@link Image}, using a window with the given {@code windowLength}.
      *
@@ -52,4 +62,12 @@ public interface SlidingWindowService {
      * @return A new {@link Image} with the filter applied.
      */
     Image applyHighPassFilter(Image image, int windowLength);
+
+    /**
+     * Returns a borders {@link Image} of the given {@code image}, applying the Prewitt gradient operator.
+     *
+     * @param image The {@link Image} to which the borders will be detected.
+     * @return The borders {@link Image}.
+     */
+    Image prewittBorderDetectionMethod(Image image);
 }

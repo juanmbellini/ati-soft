@@ -10,12 +10,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * Concrete implementation of {@link SlidingWindowService}.
  */
 @Service
 public class SlidingWindowServiceImpl implements SlidingWindowService {
+
+    // ================================================================================================================
+    // Filters
+    // ================================================================================================================
 
     @Override
     public Image applyMeanFilter(Image image, int windowLength) {
@@ -90,12 +95,12 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                         .toArray(Double[]::new))
                 .toArray(Double[][]::new);
 
-        return applyFilter(image, mask.length,
-                array -> IntStream.range(0, array.length)
-                        .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
-                        .flatMap(Function.identity())
-                        .reduce(0.0, (o1, o2) -> o1 + o2));
+        return filterWithMask(image, mask);
     }
+
+    // ================================================================================================================
+    // Border detection
+    // ================================================================================================================
 
     @Override
     public Image applyHighPassFilter(Image image, int windowLength) {
@@ -110,7 +115,84 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         final int center = windowLength / 2;
         mask[center][center] *= 1 - size;
 
-        return applyFilter(ImageManipulationHelper.toGray(image), mask.length,
+        return filterWithMask(ImageManipulationHelper.toGray(image), mask);
+    }
+
+
+    @Override
+    public Image prewittBorderDetectionMethod(Image image) {
+        final Image grayImage = ImageManipulationHelper.toGray(image);
+        return Stream.of(PrewittMask.TOP, PrewittMask.RIGHT)
+                .parallel()
+                .map(PrewittMask::getMask)
+                .map(mask -> filterWithMask(grayImage, mask))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> v * v))
+                .reduce(((img1, img2) ->
+                        ImageManipulationHelper.createApplying(img1, (x, y, b, v) -> v + img2.getSample(x, y, b))))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.sqrt(v)))
+                .orElseThrow(() -> new RuntimeException("This should not happen"));
+    }
+
+
+    // ================================================================================================================
+    // Masks
+    // ================================================================================================================
+
+    private final static Double[][] PREWITT_MASK = {{1d, 1d, 1d}, {0d, 0d, 0d}, {-1d, -1d, -1d}};
+
+    /**
+     * Enum containing the Prewitt mask in all directions.
+     */
+    private enum PrewittMask implements MaskHelper.MaskContainer {
+        TOP(PREWITT_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        PrewittMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
+
+    // ================================================================================================================
+    // Helpers
+    // ================================================================================================================
+
+    /**
+     * Applies a filter to the given {@link Image}, using the given {@code mask}.
+     *
+     * @param image The {@link Image} to be filtered.
+     * @param mask  The mask to be applied.
+     * @return The filtered {@link Image}.
+     */
+    private static Image filterWithMask(Image image, Double[][] mask) {
+        MaskHelper.validateMask(mask);
+        return applyFilter(image, mask.length,
                 array -> IntStream.range(0, array.length)
                         .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
                         .flatMap(Function.identity())
