@@ -63,6 +63,11 @@ public class HomeController {
     private final ImageOperationService imageOperationService;
 
     /**
+     * An {@link ImageThresholdService} used to create binary images.
+     */
+    private final ImageThresholdService imageThresholdService;
+
+    /**
      * A {@link NoiseGenerationService} used to pollute images.
      */
     private final NoiseGenerationService noiseGenerationService;
@@ -76,6 +81,11 @@ public class HomeController {
      * A {@link HistogramService} used to calculate image histograms.
      */
     private final HistogramService histogramService;
+
+    /**
+     * A {@link DiffusionService} to perform image filtering using diffusion.
+     */
+    private final DiffusionService diffusionService;
 
 
     // ==============================================================================
@@ -171,14 +181,18 @@ public class HomeController {
     @Autowired
     public HomeController(ImageIOService imageIOService,
                           ImageOperationService imageOperationService,
+                          ImageThresholdService imageThresholdService,
                           NoiseGenerationService noiseGenerationService,
                           SlidingWindowService slidingWindowService,
-                          HistogramService histogramService) {
+                          HistogramService histogramService,
+                          DiffusionService diffusionService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
+        this.imageThresholdService = imageThresholdService;
         this.noiseGenerationService = noiseGenerationService;
         this.slidingWindowService = slidingWindowService;
         this.histogramService = histogramService;
+        this.diffusionService = diffusionService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -355,8 +369,21 @@ public class HomeController {
     @FXML
     public void threshold() {
         getNumber("Threshold value", "", "Insert the threshold", Integer::parseInt)
-                .ifPresent(u -> oneImageOperationAction(image -> imageOperationService.threshold(image, u),
-                        "threshold function", imageOperationService::normalize));
+                .ifPresent(value -> oneImageOperationAction(image -> imageThresholdService.manualThreshold(image, value),
+                        "manual threshold function", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void globalThreshold() {
+        getNumber("Delta T value for Global Threshold", "", "Insert the delta T", Integer::parseInt)
+                .ifPresent(deltaT ->
+                        oneImageOperationAction(image -> imageThresholdService.globalThreshold(image, deltaT),
+                                "global threshold", Function.identity()));
+    }
+
+    @FXML
+    public void otsuThreshold() {
+        oneImageOperationAction(imageThresholdService::otsuThreshold, "Otsu threshold", Function.identity());
     }
 
     @FXML
@@ -472,6 +499,113 @@ public class HomeController {
                 .ifPresent(length -> oneImageOperationAction(image ->
                                 slidingWindowService.applyHighPassFilter(image, length),
                         "High-Pass Filtering", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void borderDetectionWithPrewittGradientOperator() {
+        oneImageOperationAction(slidingWindowService::prewittGradientOperatorBorderDetectionMethod,
+                "border detection with Prewitt's gradient operator", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithSobelGradientOperator() {
+        oneImageOperationAction(slidingWindowService::sobelGradientOperatorBorderDetectionMethod,
+                "border detection with Sobel's gradient operator", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithAnonymousMaxDirection() {
+        oneImageOperationAction(slidingWindowService::anonymousMaxDirectionBorderDetectionMethod,
+                "border detection with anonymous's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithKirshMaxDirection() {
+        oneImageOperationAction(slidingWindowService::kirshMaxDirectionBorderDetectionMethod,
+                "border detection with Kirsh's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithPrewittMaxDirection() {
+        oneImageOperationAction(slidingWindowService::prewittMaxDirectionBorderDetectionMethod,
+                "border detection with Prewitt's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithSobelMaxDirection() {
+        oneImageOperationAction(slidingWindowService::sobelMaxDirectionBorderDetectionMethod,
+                "border detection with Sobel's max direction", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceMethod() {
+        oneImageOperationAction(slidingWindowService::laplaceMethod,
+                "border detection with Laplace's", imageOperationService::normalize);
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceMethodAndSlopeEvaluation() {
+        getNumber("Slope threshold for Laplace method", "", "Insert the threshold", Double::parseDouble)
+                .ifPresent(threshold -> oneImageOperationAction(image ->
+                                slidingWindowService.laplaceMethodWithSlopeEvaluation(image, threshold),
+                        "border detection with Laplace's", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceOfGaussianMethod() {
+        getNumber("Standard deviation for Laplace of Gaussian", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image ->
+                                slidingWindowService.laplaceOfGaussianMethod(image, sigma),
+                        "border detection with Laplace's", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation() {
+        getNumber("Standard deviation for Laplace of Gaussian", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> getNumber("Slope threshold for Laplace method", "",
+                        "Insert the threshold", Double::parseDouble)
+                        .ifPresent(threshold -> oneImageOperationAction(image -> slidingWindowService
+                                        .laplaceOfGaussianWithSlopeEvaluation(image, sigma, threshold),
+                                "border detection with Laplace's", imageOperationService::normalize)));
+    }
+
+    @FXML
+    public void isotropicDiffusion() {
+        getNumber("Amount of iterations for Isotropic Diffusion", "",
+                "Insert the amount of iterations", Integer::parseInt)
+                .ifPresent(t -> getNumber("Lambda value for the discrete equation", "",
+                        "Insert the lambda value", Double::parseDouble)
+                        .ifPresent(lambda -> oneImageOperationAction(image -> diffusionService
+                                        .isotropicDiffusion(image, t, lambda),
+                                "isotropic diffusion", imageOperationService::normalize)));
+    }
+
+    @FXML
+    public void leclercAnisotropicDiffusion() {
+        getNumber("Amount of iterations for Anisotropic Diffusion", "",
+                "Insert the amount of iterations", Integer::parseInt)
+                .ifPresent(t -> getNumber("Lambda value for the discrete equation", "",
+                        "Insert the lambda value", Double::parseDouble)
+                        .ifPresent(lambda -> getNumber("Sigma value for Leclerc detector", "",
+                                "Insert the sigma value", Double::parseDouble)
+                                .ifPresent(sigma -> oneImageOperationAction(image -> diffusionService
+                                                .anisotropicDiffusionWithLeclerc(image, t, lambda, sigma),
+                                        "Leclerc anisotropic diffusion", imageOperationService::normalize))));
+    }
+
+    @FXML
+    public void lorentzAnisotropicDiffusion() {
+        getNumber("Amount of iterations for Anisotropic Diffusion", "",
+                "Insert the amount of iterations", Integer::parseInt)
+                .ifPresent(t -> getNumber("Lambda value for the discrete equation", "",
+                        "Insert the lambda value", Double::parseDouble)
+                        .ifPresent(lambda -> getNumber("Sigma value for Lorentz detector", "",
+                                "Insert the sigma value", Double::parseDouble)
+                                .ifPresent(sigma -> oneImageOperationAction(image -> diffusionService
+                                                .anisotropicDiffusionWithLorentz(image, t, lambda, sigma),
+                                        "Lorentz anisotropic diffusion", imageOperationService::normalize))));
     }
 
     // ======================================

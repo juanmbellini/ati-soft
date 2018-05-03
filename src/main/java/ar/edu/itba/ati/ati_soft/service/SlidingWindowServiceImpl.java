@@ -8,7 +8,9 @@ import org.springframework.util.Assert;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 /**
@@ -16,6 +18,10 @@ import java.util.stream.IntStream;
  */
 @Service
 public class SlidingWindowServiceImpl implements SlidingWindowService {
+
+    // ================================================================================================================
+    // Filters
+    // ================================================================================================================
 
     @Override
     public Image applyMeanFilter(Image image, int windowLength) {
@@ -90,12 +96,12 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                         .toArray(Double[]::new))
                 .toArray(Double[][]::new);
 
-        return applyFilter(image, mask.length,
-                array -> IntStream.range(0, array.length)
-                        .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
-                        .flatMap(Function.identity())
-                        .reduce(0.0, (o1, o2) -> o1 + o2));
+        return filterWithMask(image, mask);
     }
+
+    // ================================================================================================================
+    // Border detection
+    // ================================================================================================================
 
     @Override
     public Image applyHighPassFilter(Image image, int windowLength) {
@@ -110,6 +116,396 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         final int center = windowLength / 2;
         mask[center][center] *= 1 - size;
 
+        return filterWithMask(ImageManipulationHelper.toGray(image), mask);
+    }
+
+
+    @Override
+    public Image prewittGradientOperatorBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), PrewittMask.TOP, PrewittMask.RIGHT);
+    }
+
+    @Override
+    public Image sobelGradientOperatorBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithModulus(ImageManipulationHelper.toGray(image), SobelMask.TOP, SobelMask.RIGHT);
+    }
+
+    @Override
+    public Image anonymousMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), AnonymousMask.values());
+    }
+
+    @Override
+    public Image kirshMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), KirshMask.values());
+    }
+
+    @Override
+    public Image prewittMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), PrewittMask.values());
+    }
+
+    @Override
+    public Image sobelMaxDirectionBorderDetectionMethod(Image image) {
+        return multiMaskFilteringWithMax(ImageManipulationHelper.toGray(image), SobelMask.values());
+    }
+
+    @Override
+    public Image laplaceMethod(Image image) {
+        return laplaceMethod(image, (prev, actual) -> true);
+    }
+
+    @Override
+    public Image laplaceMethodWithSlopeEvaluation(Image image, double slopeThreshold) {
+        return laplaceMethod(image, (prev, actual) -> Math.abs(prev - actual) >= slopeThreshold);
+    }
+
+    @Override
+    public Image laplaceOfGaussianMethod(Image image, double sigma) {
+        return laplaceOfGaussianMethod(image, sigma, (prev, actual) -> true);
+    }
+
+    @Override
+    public Image laplaceOfGaussianWithSlopeEvaluation(Image image, double sigma, double slopeThreshold) {
+        return laplaceOfGaussianMethod(image, sigma, (prev, actual) -> Math.abs(prev - actual) >= slopeThreshold);
+    }
+
+    // ================================================================================================================
+    // Masks
+    // ================================================================================================================
+
+    private final static Double[][] ANONYMOUS_MASK = {{1d, 1d, 1d}, {1d, -2d, 1d}, {-1d, -1d, -1d}};
+    private final static Double[][] KIRSH_MASK = {{5d, 5d, 5d}, {-3d, 0d, -3d}, {-3d, -3d, -3d}};
+    private final static Double[][] PREWITT_MASK = {{1d, 1d, 1d}, {0d, 0d, 0d}, {-1d, -1d, -1d}};
+    private final static Double[][] SOBEL_MASK = {{1d, 2d, 1d}, {0d, 0d, 0d}, {-1d, -2d, -1d}};
+    private final static Double[][] LAPLACE_MASK = {{0d, -1d, 0d}, {-1d, 4d, -1d}, {0d, -1d, 0d}};
+
+    /**
+     * Enum containing the anonymous mask in all directions.
+     */
+    private enum AnonymousMask implements MaskHelper.MaskContainer {
+        TOP(ANONYMOUS_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        AnonymousMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
+    /**
+     * Enum containing the Kirsh's mask in all directions.
+     */
+    private enum KirshMask implements MaskHelper.MaskContainer {
+        TOP(KIRSH_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        KirshMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
+    /**
+     * Enum containing the Prewitt's mask in all directions.
+     */
+    private enum PrewittMask implements MaskHelper.MaskContainer {
+        TOP(PREWITT_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        PrewittMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
+    /**
+     * Enum containing the Sobel's mask in all directions.
+     */
+    private enum SobelMask implements MaskHelper.MaskContainer {
+        TOP(SOBEL_MASK),
+        TOP_LEFT(MaskHelper.rotate3x3Mask(TOP, 1)),
+        LEFT(MaskHelper.rotate3x3Mask(TOP, 2)),
+        BOTTOM_LEFT(MaskHelper.rotate3x3Mask(TOP, 3)),
+        BOTTOM(MaskHelper.mirrorMask(TOP)),
+        BOTTOM_RIGHT(MaskHelper.mirrorMask(TOP_LEFT)),
+        RIGHT(MaskHelper.mirrorMask(LEFT)),
+        TOP_RIGHT(MaskHelper.mirrorMask(BOTTOM_LEFT));
+
+        /**
+         * The mask contained by each value.
+         */
+        private final Double[][] mask;
+
+        /**
+         * Constructor.
+         *
+         * @param mask The mask contained by each value.
+         * @throws IllegalArgumentException If the given {@code mask} is invalid.
+         */
+        SobelMask(Double[][] mask) throws IllegalArgumentException {
+            // First, validate the mask.
+            MaskHelper.validateMask(mask); // Makes sure that the mask is not null or empty, and is square.
+            Assert.isTrue(mask.length == 3, "The mask must be a 3x3 square matrix");
+            // Then, set the mask.
+            this.mask = mask;
+        }
+
+        @Override
+        public Double[][] getMask() {
+            return mask;
+        }
+    }
+
+
+    // ================================================================================================================
+    // Helpers
+    // ================================================================================================================
+
+    /**
+     * Performs a multi-mask filtering, according to the given
+     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s,
+     * applying the modulus between all the generated border images.
+     *
+     * @param image          The {@link Image} to be filtered.
+     * @param maskContainers The {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}
+     *                       that holds the masks to be applied.
+     * @return The filtered image.
+     */
+    private static Image multiMaskFilteringWithModulus(Image image, MaskHelper.MaskContainer... maskContainers) {
+        return Arrays.stream(maskContainers)
+                .parallel()
+                .map(MaskHelper.MaskContainer::getMask)
+                .map(mask -> filterWithMask(image, mask))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> v * v))
+                .reduce(((img1, img2) ->
+                        ImageManipulationHelper.createApplying(img1, (x, y, b, v) -> v + img2.getSample(x, y, b))))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.sqrt(v)))
+                .orElseThrow(() -> new RuntimeException("This should not happen"));
+    }
+
+    /**
+     * Performs a multi-mask filtering, according to the given
+     * {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}s,
+     * applying the max between all the generated border images.
+     *
+     * @param image          The {@link Image} to be filtered.
+     * @param maskContainers The {@link ar.edu.itba.ati.ati_soft.service.MaskHelper.MaskContainer}
+     *                       that holds the masks to be applied.
+     * @return The filtered image.
+     */
+    private static Image multiMaskFilteringWithMax(Image image, MaskHelper.MaskContainer... maskContainers) {
+        final int width = image.getWidth();
+        final int height = image.getHeight();
+        final int bands = image.getBands();
+        return Arrays.stream(maskContainers)
+                .parallel()
+                .map(MaskHelper.MaskContainer::getMask)
+                .map(mask -> filterWithMask(image, mask))
+                .map(img -> ImageManipulationHelper.createApplying(img, (x, y, b, v) -> Math.abs(v)))
+                .reduce(Image.empty(width, height, bands),
+                        (img1, img2) -> ImageManipulationHelper.createApplying(img1,
+                                (x, y, b, v) -> Math.max(v, img2.getSample(x, y, b))));
+    }
+
+    /**
+     * Applies the Laplace method for border detection.
+     *
+     * @param image       The {@link Image} to which the method will be applied.
+     * @param acceptSlope A {@link BiFunction} that takes to contiguous pixels, calculates the slope,
+     *                    and tells whether this slope is acceptable (i.e can be considered a border).
+     * @return The processed {@link Image}.
+     */
+    private static Image laplaceMethod(Image image, BiFunction<Double, Double, Boolean> acceptSlope) {
+        return secondDerivativeMethod(image, LAPLACE_MASK, acceptSlope);
+    }
+
+    /**
+     * Applies the Laplace method for border detection.
+     *
+     * @param image       The {@link Image} to which the method will be applied.
+     * @param acceptSlope A {@link BiFunction} that takes to contiguous pixels, calculates the slope,
+     *                    and tells whether this slope is acceptable (i.e can be considered a border).
+     * @return The processed {@link Image}.
+     */
+    private static Image laplaceOfGaussianMethod(Image image, double sigma,
+                                                 BiFunction<Double, Double, Boolean> acceptSlope) {
+        Assert.isTrue(sigma > 0, "The standard deviation must be positive");
+        final int margin = (int) (sigma * 3);
+        final double variance = sigma * sigma; // Avoid recalculating this
+        final double factor = -1 / (Math.sqrt(2 * Math.PI) * variance * sigma); // Avoid recalculating this
+        final Double[][] mask = IntStream.range(-margin, margin + 1)
+                .mapToObj(x -> IntStream.range(-margin, margin + 1)
+                        .mapToObj(y -> (x * x + y * y) / variance)
+                        .map(value -> factor * (2 - value) * Math.exp(-value / 2))
+                        .toArray(Double[]::new))
+                .toArray(Double[][]::new);
+        return secondDerivativeMethod(image, mask, acceptSlope);
+    }
+
+    /**
+     * Applies the a second derivative method for border detection.
+     *
+     * @param image       The {@link Image} to which the method will be applied.
+     * @param mask        The mask to be applied.
+     * @param acceptSlope A {@link BiFunction} that takes to contiguous pixels, calculates the slope,
+     *                    and tells whether this slope is acceptable (i.e can be considered a border).
+     * @return The processed {@link Image}.
+     */
+    private static Image secondDerivativeMethod(Image image, Double[][] mask,
+                                                BiFunction<Double, Double, Boolean> acceptSlope) {
+        final Image maskImage = filterWithMask(ImageManipulationHelper.toGray(image), mask);
+        final Supplier<Image> emptyImageSupplier =
+                () -> Image.empty(maskImage.getWidth(), maskImage.getHeight(), maskImage.getBands());
+
+        final Image zeroCrossByColumn = ImageManipulationHelper.createApplying(emptyImageSupplier,
+                (x, y, b) -> borderPixel(0, maskImage.getWidth() - 1, x,
+                        position -> maskImage.getSample(position, y, b), acceptSlope));
+        final Image zeroCrossByRow = ImageManipulationHelper.createApplying(emptyImageSupplier,
+                (x, y, b) -> borderPixel(0, maskImage.getHeight() - 1, y,
+                        position -> maskImage.getSample(x, position, b), acceptSlope));
+
+        return ImageManipulationHelper.createApplying(emptyImageSupplier,
+                (x, y, b) -> zeroCrossByColumn.getSample(x, y, b) + zeroCrossByRow.getSample(x, y, b) == 0 ? 0d : 255d);
+    }
+
+    /**
+     * Returns a border pixel (i.e {@code 0.0} if there is no border, or {@code 255.0} if there is border).
+     * This method uses the zero cross technique.
+     *
+     * @param lowerLimit    The lower limit to iterate.
+     * @param upperLimit    The upper limit to iterate.
+     * @param position      The actual position (i.e
+     * @param pixelSupplier The function that returns a pixel according to the actual position.
+     * @return The border pixel.
+     */
+    private static double borderPixel(int lowerLimit, int upperLimit, int position,
+                                      Function<Integer, Double> pixelSupplier,
+                                      BiFunction<Double, Double, Boolean> acceptSlope) {
+        Assert.isTrue(position >= lowerLimit && position <= upperLimit, "The position is out of range");
+
+        if (position == lowerLimit) {
+            return 0d;
+        }
+        final double pixel = pixelSupplier.apply(position);
+        final double prev = pixelSupplier.apply(position - 1);
+        if (position == upperLimit) {
+            return changeOfSign(prev, pixel) && acceptSlope.apply(prev, pixel) ? 255d : 0;
+        }
+        final double next = pixelSupplier.apply(position + 1);
+        return changeOfSign(prev, pixel, next) && acceptSlope.apply(prev, pixel) ? 255d : 0;
+    }
+
+    /**
+     * Checks if there is a change of sign between the three pixels.
+     *
+     * @param prev  The previous pixel.
+     * @param pixel The actual pixel.
+     * @param next  The next pixel.
+     * @return {@code true} if there is change of sign, or {@code false} otherwise.
+     */
+    private static boolean changeOfSign(double prev, double pixel, double next) {
+        if (pixel == 0d) {
+            return changeOfSign(prev, next);
+        }
+        return changeOfSign(prev, pixel);
+    }
+
+    /**
+     * Checks if there is a change of sign between the two pixels.
+     *
+     * @param prev  The previous pixel.
+     * @param pixel The actual pixel.
+     * @return {@code true} if there is change of sign, or {@code false} otherwise.
+     */
+    private static boolean changeOfSign(double prev, double pixel) {
+        return prev * pixel < 0;
+    }
+
+    /**
+     * Applies a filter to the given {@link Image}, using the given {@code mask}.
+     *
+     * @param image The {@link Image} to be filtered.
+     * @param mask  The mask to be applied.
+     * @return The filtered {@link Image}.
+     */
+    private static Image filterWithMask(Image image, Double[][] mask) {
+        MaskHelper.validateMask(mask);
         return applyFilter(image, mask.length,
                 array -> IntStream.range(0, array.length)
                         .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
@@ -143,7 +539,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         final int width = image.getWidth();
         final int height = image.getHeight();
         final int bands = image.getBands();
-        final Image newImage = image.copy();// Image.trash(width, height, bands);
+        final Image newImage = Image.homogeneous(width, height, bands, 0d);
         final Double[][] window = new Double[windowLength][windowLength];
         for (int x = margin; x < width - margin; x++) {
             for (int y = margin; y < height - margin; y++) {
