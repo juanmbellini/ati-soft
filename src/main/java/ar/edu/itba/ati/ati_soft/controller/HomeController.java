@@ -82,6 +82,11 @@ public class HomeController {
      */
     private final HistogramService histogramService;
 
+    /**
+     * A {@link DiffusionService} to perform image filtering using diffusion.
+     */
+    private final DiffusionService diffusionService;
+
 
     // ==============================================================================
     // UI Components
@@ -179,13 +184,15 @@ public class HomeController {
                           ImageThresholdService imageThresholdService,
                           NoiseGenerationService noiseGenerationService,
                           SlidingWindowService slidingWindowService,
-                          HistogramService histogramService) {
+                          HistogramService histogramService,
+                          DiffusionService diffusionService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
         this.imageThresholdService = imageThresholdService;
         this.noiseGenerationService = noiseGenerationService;
         this.slidingWindowService = slidingWindowService;
         this.histogramService = histogramService;
+        this.diffusionService = diffusionService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -562,6 +569,17 @@ public class HomeController {
                         .ifPresent(threshold -> oneImageOperationAction(image -> slidingWindowService
                                         .laplaceOfGaussianWithSlopeEvaluation(image, sigma, threshold),
                                 "border detection with Laplace's", imageOperationService::normalize)));
+    }
+
+    @FXML
+    public void isotropicDiffusion() {
+        getNumber("Amount of iterations for Isotropic Diffusion", "",
+                "Insert the amount of iterations", Integer::parseInt)
+                .ifPresent(t -> getNumber("Lambda value for the discrete equation", "",
+                        "Insert the lambda value", Double::parseDouble)
+                        .ifPresent(lambda -> oneImageOperationAction(image -> diffusionService
+                                        .isotropicDiffusion(image, t, lambda),
+                                "isotropic diffusion", imageOperationService::normalize)));
     }
 
     // ======================================
