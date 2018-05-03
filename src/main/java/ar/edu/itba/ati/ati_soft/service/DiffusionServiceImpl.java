@@ -23,6 +23,15 @@ public class DiffusionServiceImpl implements DiffusionService {
         return diffuse(image, t, d -> 1.0, lambda);
     }
 
+    @Override
+    public Image anisotropicDiffusionWithLeclerc(Image image, int t, double lambda, double sigma) {
+        return diffuse(image, t, d -> Math.exp((-Math.pow(Math.abs(d), 2)) / (sigma * sigma)), lambda);
+    }
+
+    @Override
+    public Image anisotropicDiffusionWithLorentz(Image image, int t, double lambda, double sigma) {
+        return diffuse(image, t, d -> 1 / (((Math.pow(Math.abs(d), 2)) / (sigma * sigma)) + 1), lambda);
+    }
 
     // ================================================================================================================
     // Helpers

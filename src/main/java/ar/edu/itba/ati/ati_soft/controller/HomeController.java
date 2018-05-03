@@ -582,6 +582,32 @@ public class HomeController {
                                 "isotropic diffusion", imageOperationService::normalize)));
     }
 
+    @FXML
+    public void leclercAnisotropicDiffusion() {
+        getNumber("Amount of iterations for Anisotropic Diffusion", "",
+                "Insert the amount of iterations", Integer::parseInt)
+                .ifPresent(t -> getNumber("Lambda value for the discrete equation", "",
+                        "Insert the lambda value", Double::parseDouble)
+                        .ifPresent(lambda -> getNumber("Sigma value for Leclerc detector", "",
+                                "Insert the sigma value", Double::parseDouble)
+                                .ifPresent(sigma -> oneImageOperationAction(image -> diffusionService
+                                                .anisotropicDiffusionWithLeclerc(image, t, lambda, sigma),
+                                        "Leclerc anisotropic diffusion", imageOperationService::normalize))));
+    }
+
+    @FXML
+    public void lorentzAnisotropicDiffusion() {
+        getNumber("Amount of iterations for Anisotropic Diffusion", "",
+                "Insert the amount of iterations", Integer::parseInt)
+                .ifPresent(t -> getNumber("Lambda value for the discrete equation", "",
+                        "Insert the lambda value", Double::parseDouble)
+                        .ifPresent(lambda -> getNumber("Sigma value for Lorentz detector", "",
+                                "Insert the sigma value", Double::parseDouble)
+                                .ifPresent(sigma -> oneImageOperationAction(image -> diffusionService
+                                                .anisotropicDiffusionWithLorentz(image, t, lambda, sigma),
+                                        "Lorentz anisotropic diffusion", imageOperationService::normalize))));
+    }
+
     // ======================================
     // View actions
     // ======================================
