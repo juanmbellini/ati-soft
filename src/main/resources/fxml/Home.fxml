@@ -90,6 +90,12 @@
                               onAction="#weightedMedianFilter"/>
                     <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
                               onAction="#gaussianFilter"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false" text="Apply Isotropic Diffusion" onAction="#isotropicDiffusion"/>
+                    <MenuItem mnemonicParsing="false" text="Apply Leclerc Anisotropic Diffusion"
+                              onAction="#leclercAnisotropicDiffusion"/>
+                    <MenuItem mnemonicParsing="false" text="Apply Lorentz Anisotropic Diffusion"
+                              onAction="#lorentzAnisotropicDiffusion"/>
                 </Menu>
 
                 <SeparatorMenuItem/>
