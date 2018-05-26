@@ -148,4 +148,22 @@ public interface SlidingWindowService {
      * @return The borders {@link Image}.
      */
     Image laplaceOfGaussianWithSlopeEvaluation(Image image, double sigma, double slopeThreshold);
+
+    /**
+     * Suppresses the no max. pixels in the given {@code Image}.
+     *
+     * @param image The Image to be processed.
+     * @param sigma The sigma value to be used in the gaussian filter that is applied at the beginning of the method.
+     * @return The processed {@link Image}.
+     */
+    Image suppressNoMaxPixels(Image image, double sigma);
+
+    /**
+     * Applies the Canny border detector.
+     *
+     * @param image The image to be processed.
+     * @param sigma The sigma value for the gaussian filter that is applied at the beginning of the method.
+     * @return The borders {@link Image}.
+     */
+    Image cannyDetection(Image image, double sigma);
 }

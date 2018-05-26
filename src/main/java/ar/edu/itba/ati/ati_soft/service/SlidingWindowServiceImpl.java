@@ -2,6 +2,7 @@ package ar.edu.itba.ati.ati_soft.service;
 
 import ar.edu.itba.ati.ati_soft.interfaces.SlidingWindowService;
 import ar.edu.itba.ati.ati_soft.models.Image;
+import ar.edu.itba.ati.ati_soft.utils.TriFunction;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -170,6 +171,52 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         return laplaceOfGaussianMethod(image, sigma, (prev, actual) -> Math.abs(prev - actual) >= slopeThreshold);
     }
 
+    @Override
+    public Image suppressNoMaxPixels(Image image, double sigma) {
+        final int width = image.getWidth();
+        final int height = image.getHeight();
+        final int bands = image.getBands();
+        final Image grayImage = ImageManipulationHelper.toGray(image);
+        final Image filtered = applyGaussianFilter(grayImage, sigma);
+        final Image gx = filterWithMask(filtered, SobelMask.TOP.getMask());
+        final Image gy = filterWithMask(filtered, SobelMask.RIGHT.getMask());
+        final Image gradientImage = ImageManipulationHelper.createApplying(() -> Image.empty(width, height, bands),
+                (x, y, b) -> Math.abs(gx.getSample(x, y, b)) + Math.abs(gy.getSample(x, y, b)));
+
+        final Image anglesImage = ImageManipulationHelper.createApplying(() -> Image.empty(width, height, bands),
+                new AnglesFunction(gx, gy).andThen(SlidingWindowServiceImpl::correctAngle));
+
+        return ImageManipulationHelper.createApplying(gradientImage,
+                (x, y, b, v) -> {
+                    if (v <= 0) {
+                        return 0d;
+                    }
+                    final double angle = anglesImage.getSample(x, y, b);
+                    final Direction direction = Direction.fromAngle(angle);
+
+                    final int prevRow = x + direction.getX();
+                    final int prevColumn = y + direction.getY();
+                    final int nextRow = x + direction.getX();
+                    final int nextColumn = y + direction.getY();
+                    // Check index ranges first, and then adjacent pixels along the direction
+                    if (prevRow < 0 || prevRow >= width || prevColumn < 0 || prevColumn >= height
+                            || nextRow < 0 || nextRow >= width || nextColumn < 0 || nextColumn >= height
+                            || gradientImage.getSample(prevRow, prevColumn, b) > v
+                            || gradientImage.getSample(nextRow, nextColumn, b) > v) {
+                        return 0d;
+                    }
+                    return v;
+                });
+    }
+
+    @Override
+    public Image cannyDetection(Image image, double sigma) {
+        final Image noMaxPixelsSuppressedImage = suppressNoMaxPixels(image, sigma);
+
+        // TODO: threshold
+        return null;
+    }
+
     // ================================================================================================================
     // Masks
     // ================================================================================================================
@@ -334,7 +381,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
 
     // ================================================================================================================
-    // Helpers
+    // Helper methods
     // ================================================================================================================
 
     /**
@@ -498,6 +545,18 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
     }
 
     /**
+     * Corrects the given angle in order to match with the allowed directions for the Canny method.
+     *
+     * @param rawAngle The raw angle which must be corrected, in radians.
+     * @return The corrected angle.
+     */
+    private static double correctAngle(double rawAngle) {
+        final double semiCircleAngle = rawAngle % Math.PI;
+        return ((int) ((semiCircleAngle + (Math.PI / 8)) / (Math.PI / 4)) % 4) * (Math.PI / 4);
+    }
+
+
+    /**
      * Applies a filter to the given {@link Image}, using the given {@code mask}.
      *
      * @param image The {@link Image} to be filtered.
@@ -569,6 +628,119 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
             for (int y = 0; y < window[0].length; y++) {
                 window[x][y] = image.getSample(xInitial + x, yInitial + y, band);
             }
+        }
+    }
+
+
+    // ================================================================================================================
+    // Helper classes and enums
+    // ================================================================================================================
+
+    /**
+     * A specialization of {@link TriFunction} which, given an 'x', an 'y' and and a band,
+     * together with the 'x' and 'y' gradient images, it calculates the angle of them.
+     */
+    private static final class AnglesFunction implements TriFunction<Integer, Integer, Integer, Double> {
+        /**
+         * The 'x' gradient.
+         */
+        private final Image gx;
+        /**
+         * The 'y' gradient.
+         */
+        private final Image gy;
+
+        /**
+         * Constructor.
+         *
+         * @param gx The 'x' gradient.
+         * @param gy The 'y' gradient.
+         */
+        private AnglesFunction(Image gx, Image gy) {
+            this.gx = gx;
+            this.gy = gy;
+        }
+
+
+        @Override
+        public Double apply(Integer x, Integer y, Integer b) {
+            return Math.atan2(gx.getSample(x, y, b), gy.getSample(x, y, b));
+        }
+    }
+
+    /**
+     * Enum containing the directions for the gradient (i.e to be used by the Canny method).
+     */
+    private enum Direction {
+        /**
+         * Horizontal direction (i.e 0º).
+         */
+        HORIZONTAL(1, 0),
+        /**
+         * Vertical direction (i.e 90º).
+         */
+        VERTICAL(0, 1),
+        /**
+         * Diagonal direction going from the top-right corner to the lower-left (i.e 45º).
+         */
+        TOP_RIGHT(1, 1),
+        /**
+         * Diagonal direction going from the top-left corner to the lower-right (i.e 135º).
+         */
+        TOP_LEFT(-1, 1);
+
+        /**
+         * Represents the step in the 'x' axis.
+         */
+        private final int x;
+        /**
+         * Represents the step in the 'y' axis.
+         */
+        private final int y;
+
+        Direction(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        /**
+         * @return The step in the 'x' axis.
+         */
+        public int getX() {
+            return x;
+        }
+
+        /**
+         * @return The step in the 'x' axis.
+         */
+        public int getY() {
+            return y;
+        }
+
+        /**
+         * An array of {@link Direction} ordered by the semi-circle convention.
+         */
+        private static Direction[] ANGLES_ORDER = {HORIZONTAL, TOP_RIGHT, VERTICAL, TOP_LEFT};
+
+        /**
+         * Finds the {@link Direction} corresponding to the given {@code angle}.
+         *
+         * @param angle The angle from which the {@link Direction} is built from.
+         * @return The built {@link Direction}.
+         */
+        private static Direction fromAngle(double angle) {
+            final double index = angle / (Math.PI / 4);
+            if (Math.floor(index) != index) {
+                // In this case the division is not an integer (which means that it is not divisible by 45º)
+                throw new IllegalArgumentException("Angle must be divisible by 45º");
+            }
+            if (index < 0) {
+                throw new IllegalArgumentException("The angle must be positive!");
+            }
+            if (index > 3) {
+                throw new IllegalArgumentException("Max angle allowed is 135º");
+            }
+            return ANGLES_ORDER[(int) index];
         }
     }
 }
