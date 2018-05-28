@@ -126,6 +126,10 @@
                     <MenuItem mnemonicParsing="false"
                               text="Detect borders using Laplace of Gaussian method and slope evaluation"
                               onAction="#borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false"
+                              text="Detect borders using Canny method..."
+                              onAction="#cannyDetector"/>
                 </Menu>
             </Menu>
             <Menu mnemonicParsing="false" text="View">

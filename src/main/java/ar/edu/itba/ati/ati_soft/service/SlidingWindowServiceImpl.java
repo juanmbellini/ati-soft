@@ -1,8 +1,10 @@
 package ar.edu.itba.ati.ati_soft.service;
 
+import ar.edu.itba.ati.ati_soft.interfaces.ImageThresholdService;
 import ar.edu.itba.ati.ati_soft.interfaces.SlidingWindowService;
 import ar.edu.itba.ati.ati_soft.models.Image;
 import ar.edu.itba.ati.ati_soft.utils.TriFunction;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -19,6 +21,13 @@ import java.util.stream.IntStream;
  */
 @Service
 public class SlidingWindowServiceImpl implements SlidingWindowService {
+
+    private final ImageThresholdService imageThresholdService;
+
+    @Autowired
+    public SlidingWindowServiceImpl(ImageThresholdService imageThresholdService) {
+        this.imageThresholdService = imageThresholdService;
+    }
 
     // ================================================================================================================
     // Filters
@@ -180,8 +189,13 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         final Image filtered = applyGaussianFilter(grayImage, sigma);
         final Image gx = filterWithMask(filtered, SobelMask.TOP.getMask());
         final Image gy = filterWithMask(filtered, SobelMask.RIGHT.getMask());
+        // Use the modulus instead of the 1st-norm, as is has better results
         final Image gradientImage = ImageManipulationHelper.createApplying(() -> Image.empty(width, height, bands),
-                (x, y, b) -> Math.abs(gx.getSample(x, y, b)) + Math.abs(gy.getSample(x, y, b)));
+                ((x, y, b) -> {
+                    final double xGradient = gx.getSample(x, y, b);
+                    final double yGradient = gy.getSample(x, y, b);
+                    return Math.sqrt(xGradient * xGradient + yGradient * yGradient);
+                }));
 
         final Image anglesImage = ImageManipulationHelper.createApplying(() -> Image.empty(width, height, bands),
                 new AnglesFunction(gx, gy).andThen(SlidingWindowServiceImpl::correctAngle));
@@ -191,8 +205,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                     if (v <= 0) {
                         return 0d;
                     }
-                    final double angle = anglesImage.getSample(x, y, b);
-                    final Direction direction = Direction.fromAngle(angle);
+                    final Direction direction = Direction.fromAngle(anglesImage.getSample(x, y, b));
 
                     final int prevRow = x + direction.getX();
                     final int prevColumn = y + direction.getY();
@@ -211,10 +224,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
     @Override
     public Image cannyDetection(Image image, double sigma) {
-        final Image noMaxPixelsSuppressedImage = suppressNoMaxPixels(image, sigma);
-
-        // TODO: threshold
-        return null;
+        return imageThresholdService.hysteresisThreshold(suppressNoMaxPixels(image, sigma));
     }
 
     // ================================================================================================================
@@ -551,7 +561,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
      * @return The corrected angle.
      */
     private static double correctAngle(double rawAngle) {
-        final double semiCircleAngle = rawAngle % Math.PI;
+        final double semiCircleAngle = (rawAngle + Math.PI) % Math.PI;
         return ((int) ((semiCircleAngle + (Math.PI / 8)) / (Math.PI / 4)) % 4) * (Math.PI / 4);
     }
 
