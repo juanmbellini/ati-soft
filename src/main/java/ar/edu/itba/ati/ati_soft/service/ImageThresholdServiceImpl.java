@@ -41,6 +41,155 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
     @Override
     public Image otsuThreshold(Image image) {
         final Image prepared = prepareImage(image);
+        return ImageManipulationHelper.threshold(prepared, calculateOtsuThreshold(prepared));
+    }
+
+    @Override
+    public Image hysteresisThreshold(Image image) {
+        final Image prepared = prepareImage(image);
+        final int otsuThreshold = calculateOtsuThreshold(prepared);
+        final int margin = (otsuThreshold <= 127 ? otsuThreshold : (255 - otsuThreshold)) / 3;
+        final int t1 = otsuThreshold - margin;
+        final int t2 = otsuThreshold + margin;
+
+        // First we get the initial threshold image,
+        // which has all pixels above t2 as a border
+        // those below t1, not border
+        // and those between t1 and t2, undefined
+        final Image thresholdImage = ImageManipulationHelper.createApplying(prepared, (x, y, b, v) -> {
+            if (v < t1) {
+                return 0d;
+            }
+            if (v > t2) {
+                return 255d;
+            }
+            return -1d;
+        });
+
+        final int width = thresholdImage.getWidth();
+        final int height = thresholdImage.getHeight();
+        final int bands = thresholdImage.getBands();
+
+        final int imageSize = width * height;
+        // If the image is a one pixel image, then finish here
+        if (imageSize == 1) {
+            if (thresholdImage.getSample(0, 0, 0) == -1d) {
+                // But before, check that this is not an undefined pixel
+                // In case it is, set it to zero.
+                final Double[] pixel = IntStream.range(0, bands)
+                        .mapToDouble(b -> 0d)
+                        .boxed()
+                        .toArray(Double[]::new);
+                thresholdImage.setPixel(0, 0, pixel);
+            }
+            return thresholdImage;
+        }
+
+        // Get the undefined positions, and place them in a queue.
+        final Queue<ImagePosition> undefinedPositions = IntStream.range(0, width)
+                .mapToObj(x -> IntStream.range(0, height)
+                        .filter(y -> thresholdImage.getSample(x, y, 0) == -1d)
+                        .mapToObj(y -> new ImagePosition(x, y)))
+                .flatMap(Function.identity())
+                .collect(Collectors.toCollection(LinkedList::new));
+
+        if (undefinedPositions.size() == imageSize) {
+            // TODO: what do we do here?
+            throw new IllegalStateException("All the image has its pixels between " + t1 + " and " + t2);
+        }
+
+        // While there is an undefined position in the queue...
+        while (!undefinedPositions.isEmpty()) {
+            final ImagePosition position = Optional.ofNullable(undefinedPositions.poll())
+                    .orElseThrow(() -> new RuntimeException("This should not happen"));
+            final int x = position.getX();
+            final int y = position.getY();
+            final ImagePosition[] neighbors = buildNeighborsPositions(x, y);
+
+            int realNeighbors = 0; // Indicates the real amount of neighbors (excluding those out of range)
+            int undefinedNeighbors = 0; // Indicates how many neighbors are also undefined
+            int nonBorderNeighbors = 0;
+            for (ImagePosition neighbor : neighbors) {
+                final int row = neighbor.getX();
+                final int column = neighbor.getY();
+
+                if (row >= 0 && row < width && column >= 0 && column < height) {
+                    // If the neighbor is not out of range...
+                    realNeighbors++; // In this case, this is a real neighbor
+                    final double sample = thresholdImage.getSample(row, column, 0);
+                    if (sample == 255d) {
+                        // In this case the pixel is connected with a border,
+                        // so we must set it as border also
+                        final Double[] pixel = IntStream.range(0, bands)
+                                .mapToDouble(b -> 255d)
+                                .boxed()
+                                .toArray(Double[]::new);
+                        thresholdImage.setPixel(x, y, pixel);
+                        break; // Stop checking neighbors
+                    } else if (sample == 0d) {
+                        nonBorderNeighbors++;
+                    } else if (sample == -1d) {
+                        // In this case, this neighbor is undefined also
+                        undefinedNeighbors++;
+                    }
+                }
+            }
+            // In case the pixel is surrounded by non border neighbors (i.e all black pixels, or zero pixels)
+            // Then this pixel is not a border also (i.e must be set to zero)
+            if (nonBorderNeighbors == realNeighbors) {
+                final Double[] pixel = IntStream.range(0, bands)
+                        .mapToDouble(b -> 0d)
+                        .boxed()
+                        .toArray(Double[]::new);
+                thresholdImage.setPixel(x, y, pixel);
+                break;
+            }
+
+            // In case the pixel is surrounded by all undefined pixels, then this position must be processed again
+            if (undefinedNeighbors == realNeighbors) {
+                undefinedPositions.offer(position);
+            }
+
+        }
+        return thresholdImage;
+    }
+
+    /**
+     * Prepares the {@link Image} in order to make it eligible for the threshold function application.
+     * This method transforms the {@link Image} into a gray {@link Image}, and then it normalizes it.
+     *
+     * @param image The {@link Image} to be prepared.
+     * @return The prepared {@link Image}.
+     */
+    private static Image prepareImage(Image image) {
+        return ImageManipulationHelper.normalize(ImageManipulationHelper.toGray(image));
+    }
+
+    /**
+     * Calculates a new threshold value, according to the global threshold technique.
+     *
+     * @param image   The image to which the threshold will be calculated.
+     * @param actualT The actual threshold (i.e used to calculate the new value).
+     * @return The new threshold value.
+     */
+    private static int calculateNewThreshold(Image image, int actualT) {
+        return IntStream.range(0, image.getWidth())
+                .mapToObj(x -> IntStream.range(0, image.getHeight()).
+                        boxed()
+                        .collect(Collectors.groupingBy(y -> image.getSample(x, y, 0) <= (double) actualT ? 0 : 255,
+                                new GroupSumCollector(x, image))))
+                .collect(new NewThresholdCollector());
+    }
+
+    /**
+     * Calculates the Otsu's threshold value.
+     *
+     * @param prepared The {@link Image}, which must be prepared with the {@link #prepareImage(Image)} method.
+     * @return The Otsu's threshold value.
+     * @apiNote This method expects the {@link Image} to be normalized and gray.
+     * These process can be achieved with the {@link #prepareImage(Image)} method.
+     */
+    private static int calculateOtsuThreshold(Image prepared) {
         final Histogram histogram = ImageManipulationHelper.getHistogram(prepared, 0);
         final int min = histogram.minCategory();
         final int max = histogram.maxCategory();
@@ -82,35 +231,30 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
                 .map(Map.Entry::getKey)
                 .sorted()
                 .collect(Collectors.toList());
-        // Use the median as the selected threshold
-        return ImageManipulationHelper.threshold(prepared, possibleThresholds.get(possibleThresholds.size() / 2));
+
+        return possibleThresholds.get(possibleThresholds.size() / 2); // Use the median as the selected threshold
     }
 
     /**
-     * Prepares the {@link Image} in order to make it eligible for the threshold function application.
-     * This method transforms the {@link Image} into a gray {@link Image}, and then it normalizes it.
+     * Builds an array of {@link ImagePosition} containing the neighbors of the given {@code x} and {@code y}.
      *
-     * @param image The {@link Image} to be prepared.
-     * @return The prepared {@link Image}.
+     * @param x The 'x' position.
+     * @param y The 'y' position.
+     * @return The array of {@link ImagePosition}.
      */
-    private static Image prepareImage(Image image) {
-        return ImageManipulationHelper.normalize(ImageManipulationHelper.toGray(image));
-    }
+    private static ImagePosition[] buildNeighborsPositions(int x, int y) {
+        return new ImagePosition[]{
+                new ImagePosition(x - 1, y - 1),
+                new ImagePosition(x, y - 1),
+                new ImagePosition(x + 1, y - 1),
 
-    /**
-     * Calculates a new threshold value, according to the global threshold technique.
-     *
-     * @param image   The image to which the threshold will be calculated.
-     * @param actualT The actual threshold (i.e used to calculate the new value).
-     * @return The new threshold value.
-     */
-    private static int calculateNewThreshold(Image image, int actualT) {
-        return IntStream.range(0, image.getWidth())
-                .mapToObj(x -> IntStream.range(0, image.getHeight()).
-                        boxed()
-                        .collect(Collectors.groupingBy(y -> image.getSample(x, y, 0) <= (double) actualT ? 0 : 255,
-                                new GroupSumCollector(x, image))))
-                .collect(new NewThresholdCollector());
+                new ImagePosition(x - 1, y),
+                new ImagePosition(x + 1, y),
+
+                new ImagePosition(x - 1, y + 1),
+                new ImagePosition(x, y + 1),
+                new ImagePosition(x + 1, y + 1),
+        };
     }
 
     /**
@@ -249,6 +393,46 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
         private static List<Double> mergeFunction(List<Double> actual, List<Double> newOne) {
             actual.addAll(newOne);
             return actual;
+        }
+    }
+
+    /**
+     * Bean class representing a position in an {@link Image}.
+     */
+    private static final class ImagePosition {
+
+        /**
+         * The position in 'x'.
+         */
+        private final int x;
+        /**
+         * The position in 'y'.
+         */
+        private final int y;
+
+        /**
+         * Constructor.
+         *
+         * @param x The position in 'x'.
+         * @param y The position in 'y'.
+         */
+        private ImagePosition(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        /**
+         * @return The position in 'x'.
+         */
+        public int getX() {
+            return x;
+        }
+
+        /**
+         * @return The position in 'x'.
+         */
+        public int getY() {
+            return y;
         }
     }
 }
