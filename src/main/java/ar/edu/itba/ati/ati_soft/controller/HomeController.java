@@ -387,6 +387,12 @@ public class HomeController {
     }
 
     @FXML
+    public void hysteresisThreshold() {
+        oneImageOperationAction(imageThresholdService::hysteresisThreshold,
+                "Hysteresis threshold", Function.identity());
+    }
+
+    @FXML
     public void equalize() {
         oneImageOperationAction(histogramService::equalize, "image equalization",
                 imageOperationService::normalize);
@@ -485,7 +491,7 @@ public class HomeController {
 
     @FXML
     public void gaussianFilter() {
-        getNumber("Standard deviation for Median Filter", "",
+        getNumber("Standard deviation for Gaussian Filter", "",
                 "Insert the standard deviation", Double::parseDouble)
                 .ifPresent(standardDeviation -> oneImageOperationAction(image ->
                                 slidingWindowService.applyGaussianFilter(image, standardDeviation),
@@ -569,6 +575,14 @@ public class HomeController {
                         .ifPresent(threshold -> oneImageOperationAction(image -> slidingWindowService
                                         .laplaceOfGaussianWithSlopeEvaluation(image, sigma, threshold),
                                 "border detection with Laplace's", imageOperationService::normalize)));
+    }
+
+    @FXML
+    public void cannyDetector() {
+        getNumber("Standard deeviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image -> slidingWindowService.cannyDetection(image, sigma),
+                        "border detection with Canny method", Function.identity()));
     }
 
     @FXML

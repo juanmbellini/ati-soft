@@ -30,8 +30,17 @@ public interface ImageThresholdService {
      * Creates a new {@link Image} applying the threshold function,
      * calculating the threshold value using Otsu's threshold method.
      *
-     * @param image  The {@link Image} to which the threshold function will be applied.
+     * @param image The {@link Image} to which the threshold function will be applied.
      * @return The threshold {@link Image}.
      */
     Image otsuThreshold(Image image);
+
+    /**
+     * Creates a new {@link Image} applying the threshold function,
+     * calculating the threshold value using hysteresis's threshold method.
+     *
+     * @param image The {@link Image} to which the threshold function will be applied.
+     * @return The threshold {@link Image}.
+     */
+    Image hysteresisThreshold(Image image);
 }
