@@ -387,6 +387,12 @@ public class HomeController {
     }
 
     @FXML
+    public void hysteresisThreshold() {
+        oneImageOperationAction(imageThresholdService::hysteresisThreshold,
+                "Hysteresis threshold", Function.identity());
+    }
+
+    @FXML
     public void equalize() {
         oneImageOperationAction(histogramService::equalize, "image equalization",
                 imageOperationService::normalize);

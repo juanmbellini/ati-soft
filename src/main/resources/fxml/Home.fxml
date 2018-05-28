@@ -54,9 +54,10 @@
                 <SeparatorMenuItem/>
 
                 <Menu mnemonicParsing="false" text="Threshold">
-                    <MenuItem mnemonicParsing="false" text="Manual Threshold..." onAction="#threshold"/>
-                    <MenuItem mnemonicParsing="false" text="Global Threshold..." onAction="#globalThreshold"/>
-                    <MenuItem mnemonicParsing="false" text="Otsu's Threshold..." onAction="#otsuThreshold"/>
+                    <MenuItem mnemonicParsing="false" text="Manual Threshold" onAction="#threshold"/>
+                    <MenuItem mnemonicParsing="false" text="Global Threshold" onAction="#globalThreshold"/>
+                    <MenuItem mnemonicParsing="false" text="Otsu's Threshold" onAction="#otsuThreshold"/>
+                    <MenuItem mnemonicParsing="false" text="Hysteresis's Threshold" onAction="#hysteresisThreshold"/>
                 </Menu>
 
                 <SeparatorMenuItem/>
