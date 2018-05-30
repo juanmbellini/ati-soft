@@ -227,6 +227,46 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         return imageThresholdService.hysteresisThreshold(suppressNoMaxPixels(image, sigma));
     }
 
+    @Override
+    public Image susanDetection(Image image, double t) {
+        // Avoid recalculating these values...
+        final long amountOfPixelsInMask = Arrays.stream(SUSAN_CIRCULAR_MASK).flatMap(Arrays::stream)
+                .filter(v -> v == 1d)
+                .count();
+        final int centerRow = SUSAN_CIRCULAR_MASK.length / 2;
+        final int centerColumn = SUSAN_CIRCULAR_MASK.length / 2;
+
+        final Image circularImage = applyFilter(ImageManipulationHelper.toGray(image), SUSAN_CIRCULAR_MASK.length,
+                window -> {
+                    final double center = window[centerRow][centerColumn];
+                    final double nr0 = IntStream.range(0, SUSAN_CIRCULAR_MASK.length)
+                            .mapToObj(x -> IntStream.range(0, SUSAN_CIRCULAR_MASK.length)
+                                    .filter(y -> !(x == centerRow && y == centerColumn))
+                                    .filter(y -> SUSAN_CIRCULAR_MASK[x][y] == 1d)
+                                    .mapToObj(y -> window[x][y]))
+                            .flatMap(Function.identity())
+                            .map(r -> Math.abs(r - center) < t ? 1d : 0d)
+                            .reduce(0d, (o1, o2) -> o1 + o2);
+                    return 1 - (nr0 / amountOfPixelsInMask);
+                });
+        final int width = image.getWidth();
+        final int height = image.getHeight();
+
+        return ImageManipulationHelper.createApplying(() -> Image.empty(width, height, 3),
+                (x, y) -> {
+                    // The image is gray so only one sample is needed
+                    final double v = circularImage.getSample(x, y, 0);
+                    if (v >= 0.65 && v <= 0.85) {
+                        // In this case, it is a corner
+                        return new Double[]{255d, 0d, 0d};
+                    } else if (v >= 0.4 && v <= 0.6) {
+                        // In this case, it is a corner
+                        return new Double[]{0d, 255d, 0d};
+                    }
+                    return new Double[]{0d, 0d, 0d};
+                });
+    }
+
     // ================================================================================================================
     // Masks
     // ================================================================================================================
@@ -236,6 +276,15 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
     private final static Double[][] PREWITT_MASK = {{1d, 1d, 1d}, {0d, 0d, 0d}, {-1d, -1d, -1d}};
     private final static Double[][] SOBEL_MASK = {{1d, 2d, 1d}, {0d, 0d, 0d}, {-1d, -2d, -1d}};
     private final static Double[][] LAPLACE_MASK = {{0d, -1d, 0d}, {-1d, 4d, -1d}, {0d, -1d, 0d}};
+    private final static Double[][] SUSAN_CIRCULAR_MASK = {
+            {0d, 0d, 1d, 1d, 1d, 0d, 0d},
+            {0d, 1d, 1d, 1d, 1d, 1d, 0d},
+            {1d, 1d, 1d, 1d, 1d, 1d, 1d},
+            {1d, 1d, 1d, 1d, 1d, 1d, 1d},
+            {1d, 1d, 1d, 1d, 1d, 1d, 1d},
+            {0d, 1d, 1d, 1d, 1d, 1d, 0d},
+            {0d, 0d, 1d, 1d, 1d, 0d, 0d},
+    };
 
     /**
      * Enum containing the anonymous mask in all directions.

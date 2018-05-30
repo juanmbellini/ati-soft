@@ -152,7 +152,7 @@ public interface SlidingWindowService {
     /**
      * Suppresses the no max. pixels in the given {@code Image}.
      *
-     * @param image The Image to be processed.
+     * @param image The {@link Image} to be processed.
      * @param sigma The sigma value to be used in the gaussian filter that is applied at the beginning of the method.
      * @return The processed {@link Image}.
      */
@@ -161,9 +161,18 @@ public interface SlidingWindowService {
     /**
      * Applies the Canny border detector.
      *
-     * @param image The image to be processed.
+     * @param image The {@link Image} to be processed.
      * @param sigma The sigma value for the gaussian filter that is applied at the beginning of the method.
      * @return The borders {@link Image}.
      */
     Image cannyDetection(Image image, double sigma);
+
+    /**
+     * Applies the SUSAN border and corner detector.
+     *
+     * @param image The {@link Image} to be processed.
+     * @param t     The t value.
+     * @return The borders and corners {@link Image}.
+     */
+    Image susanDetection(Image image, double t);
 }
