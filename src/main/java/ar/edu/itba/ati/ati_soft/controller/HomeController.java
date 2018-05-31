@@ -87,6 +87,11 @@ public class HomeController {
      */
     private final DiffusionService diffusionService;
 
+    /**
+     * A {@link HoughService} to perform shape detection.
+     */
+    private final HoughService houghService;
+
 
     // ==============================================================================
     // UI Components
@@ -178,7 +183,8 @@ public class HomeController {
                           NoiseGenerationService noiseGenerationService,
                           SlidingWindowService slidingWindowService,
                           HistogramService histogramService,
-                          DiffusionService diffusionService) {
+                          DiffusionService diffusionService,
+                          HoughService houghService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
         this.imageThresholdService = imageThresholdService;
@@ -186,6 +192,7 @@ public class HomeController {
         this.slidingWindowService = slidingWindowService;
         this.histogramService = histogramService;
         this.diffusionService = diffusionService;
+        this.houghService = houghService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -571,6 +578,15 @@ public class HomeController {
     }
 
     @FXML
+    public void suppressNoMax() {
+        getNumber("Standard deviation for gaussian filtering for the No max suppression", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image ->
+                                slidingWindowService.suppressNoMaxPixels(image, sigma),
+                        "border detection with Canny method", imageOperationService::normalize));
+    }
+
+    @FXML
     public void cannyDetector() {
         getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
                 "Insert the standard deviation", Double::parseDouble)
@@ -578,6 +594,7 @@ public class HomeController {
                         "border detection with Canny method", Function.identity()));
     }
 
+    @FXML
     public void susanDetector() {
         getNumber("T value for the susan detection method", "",
                 "Insert the t value", Double::parseDouble)
@@ -658,6 +675,29 @@ public class HomeController {
                 .forEach((b, h) ->
                         showHistogram(histogramService.getCumulativeDistributionHistogram(h),
                                 "Cumulative Distribution Histogram for band " + b));
+    }
+
+    @FXML
+    public void detectStraightLines() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma ->
+                        getNumber("Theta step for the Hough accumulator matrix", "",
+                                "Insert the theta step", Double::parseDouble)
+                                .ifPresent(thetaStep -> getNumber("Epsilon for the Straight Line detector", "",
+                                        "Insert the epsilon", Double::parseDouble)
+                                        .ifPresent(epsilon -> getNumber("Max percentage", "",
+                                                "Insert the percentage of the max to be taken into account",
+                                                Double::parseDouble)
+                                                .ifPresent(maxPercentage ->
+                                                        oneImageOperationAction(image ->
+                                                                        houghService.findStraightLines(image,
+                                                                                sigma,
+                                                                                thetaStep,
+                                                                                epsilon,
+                                                                                maxPercentage),
+                                                                "Hough transform for straight lines",
+                                                                Function.identity())))));
     }
 
 

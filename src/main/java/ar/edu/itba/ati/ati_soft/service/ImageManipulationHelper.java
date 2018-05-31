@@ -312,4 +312,63 @@ import java.util.stream.IntStream;
             }
         }
     }
+
+    /**
+     * Bean class representing a position in an {@link Image}.
+     */
+    /* package */ static final class ImagePosition {
+
+        /**
+         * The position in 'x'.
+         */
+        private final int x;
+        /**
+         * The position in 'y'.
+         */
+        private final int y;
+
+        /**
+         * Constructor.
+         *
+         * @param x The position in 'x'.
+         * @param y The position in 'y'.
+         */
+        /* package */ ImagePosition(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        /**
+         * @return The position in 'x'.
+         */
+        public int getX() {
+            return x;
+        }
+
+        /**
+         * @return The position in 'x'.
+         */
+        public int getY() {
+            return y;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ImagePosition)) {
+                return false;
+            }
+            final ImagePosition that = (ImagePosition) o;
+            return x == that.x && y == that.y;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = x;
+            result = 31 * result + y;
+            return result;
+        }
+    }
 }

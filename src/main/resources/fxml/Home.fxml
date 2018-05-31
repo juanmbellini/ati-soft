@@ -128,10 +128,22 @@
                               text="Detect borders using Laplace of Gaussian method and slope evaluation"
                               onAction="#borderDetectionWithLaplaceOfGaussianMethodAndSlopeEvaluation"/>
                     <SeparatorMenuItem/>
+                    <MenuItem mnemonicParsing="false" text="Suppress no max pixels..."
+                              onAction="#suppressNoMax"/>
                     <MenuItem mnemonicParsing="false" text="Detect borders using Canny method..."
                               onAction="#cannyDetector"/>
                     <MenuItem mnemonicParsing="false" text="Detect borders using Susan method..."
                               onAction="#susanDetector"/>
+                </Menu>
+
+                <SeparatorMenuItem/>
+
+                <Menu mnemonicParsing="false" text="Shape detection">
+                    <Menu mnemonicParsing="false" text="Hough transform">
+                        <MenuItem mnemonicParsing="false" text="Detect straight lines..."
+                                  onAction="#detectStraightLines"/>
+                    </Menu>
+
                 </Menu>
             </Menu>
             <Menu mnemonicParsing="false" text="View">
