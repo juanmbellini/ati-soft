@@ -642,6 +642,48 @@ public class HomeController {
                                         "Lorentz anisotropic diffusion", imageOperationService::normalize))));
     }
 
+    @FXML
+    public void detectStraightLines() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma ->
+                        getNumber("Theta step for the Hough accumulator matrix", "",
+                                "Insert the theta step", Double::parseDouble)
+                                .ifPresent(thetaStep -> getNumber("Epsilon for the Straight Line detector", "",
+                                        "Insert the epsilon", Double::parseDouble)
+                                        .ifPresent(epsilon -> getNumber("Max percentage", "",
+                                                "Insert the percentage of the max to be taken into account",
+                                                Double::parseDouble)
+                                                .ifPresent(maxPercentage ->
+                                                        oneImageOperationAction(image ->
+                                                                        houghService.findStraightLines(image,
+                                                                                sigma,
+                                                                                thetaStep,
+                                                                                epsilon,
+                                                                                maxPercentage),
+                                                                "Hough transform for straight lines",
+                                                                Function.identity())))));
+    }
+
+    @FXML
+    public void detectCircles() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> getNumber("Epsilon for the Straight Line detector", "",
+                        "Insert the epsilon", Double::parseDouble)
+                        .ifPresent(epsilon -> getNumber("Max percentage", "",
+                                "Insert the percentage of the max to be taken into account",
+                                Double::parseDouble)
+                                .ifPresent(maxPercentage ->
+                                        oneImageOperationAction(image ->
+                                                        houghService.findCircles(image,
+                                                                sigma,
+                                                                epsilon,
+                                                                maxPercentage),
+                                                "Hough transform for circles",
+                                                Function.identity()))));
+    }
+
     // ======================================
     // View actions
     // ======================================
@@ -675,29 +717,6 @@ public class HomeController {
                 .forEach((b, h) ->
                         showHistogram(histogramService.getCumulativeDistributionHistogram(h),
                                 "Cumulative Distribution Histogram for band " + b));
-    }
-
-    @FXML
-    public void detectStraightLines() {
-        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
-                "Insert the standard deviation", Double::parseDouble)
-                .ifPresent(sigma ->
-                        getNumber("Theta step for the Hough accumulator matrix", "",
-                                "Insert the theta step", Double::parseDouble)
-                                .ifPresent(thetaStep -> getNumber("Epsilon for the Straight Line detector", "",
-                                        "Insert the epsilon", Double::parseDouble)
-                                        .ifPresent(epsilon -> getNumber("Max percentage", "",
-                                                "Insert the percentage of the max to be taken into account",
-                                                Double::parseDouble)
-                                                .ifPresent(maxPercentage ->
-                                                        oneImageOperationAction(image ->
-                                                                        houghService.findStraightLines(image,
-                                                                                sigma,
-                                                                                thetaStep,
-                                                                                epsilon,
-                                                                                maxPercentage),
-                                                                "Hough transform for straight lines",
-                                                                Function.identity())))));
     }
 
 
@@ -773,7 +792,7 @@ public class HomeController {
     private File selectFile() {
         final FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select image");
-        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+//        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
         final List<FileChooser.ExtensionFilter> extensionFilters = imageIOService.getSupportedFormats().entrySet()
                 .stream()
                 .map(e -> new FileChooser.ExtensionFilter(e.getValue() + " (." + e.getKey() + ")", "*." + e.getKey()))

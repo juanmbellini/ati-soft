@@ -45,7 +45,16 @@ public class HoughServiceImpl implements HoughService {
 
     @Override
     public Image findCircles(Image image, double sigma, double epsilon, double maxPercentage) {
-        return null; // TODO: implement
+        final Set<Shape> shapes = new HashSet<>();
+        final int d = Math.max(image.getWidth(), image.getHeight());
+        for (int radius = 1; radius <= d / 2; radius += 2) {
+            for (int x = radius; x <= image.getWidth() - radius; x += 1) {
+                for (int y = radius; y <= image.getHeight() - radius; y += 1) {
+                    shapes.add(new Circle(x, y, radius, epsilon));
+                }
+            }
+        }
+        return findShape(image, sigma, () -> shapes, maxPercentage);
     }
 
     /**
@@ -83,7 +92,6 @@ public class HoughServiceImpl implements HoughService {
                             shapesAccumulator.put(shape, newCount);
                             max = newCount > max ? newCount : max;
                         }
-
                     }
                 }
             }
@@ -91,7 +99,7 @@ public class HoughServiceImpl implements HoughService {
         final double threshold = maxPercentage * max;
         final Set<Shape> allowedShapes = shapes.stream()
                 .filter(shape -> Optional.ofNullable(shapesAccumulator.get(shape))
-                        .orElseThrow(() -> new RuntimeException("This should not happen")) > threshold)
+                        .orElseThrow(() -> new RuntimeException("This should not happen")) >= threshold)
                 .collect(Collectors.toSet());
         return ImageManipulationHelper.createApplying(() -> Image.empty(width, height, image.getBands()),
                 (x, y, b) -> allowedShapes.stream().anyMatch(shape -> shape.belongs(x, y)) ? 255d : 0d);
@@ -184,6 +192,83 @@ public class HoughServiceImpl implements HoughService {
             temp = Double.doubleToLongBits(theta);
             result = (int) (temp ^ (temp >>> 32));
             temp = Double.doubleToLongBits(ro);
+            result = 31 * result + (int) (temp ^ (temp >>> 32));
+            return result;
+        }
+    }
+
+    private final static class Circle implements Shape {
+
+        /**
+         * The 'x' component of the center of this circle.
+         */
+        private final double xCenter;
+
+        /**
+         * The 'y' component of the center of this circle.
+         */
+        private final double yCenter;
+
+        /**
+         * The radius of this circle.
+         */
+        private final double radius;
+
+        /**
+         * The square of the radius (saved to avoid recalculating it).
+         */
+        private final double squaredRadius;
+
+        /**
+         * An epsilon used to identify if a given pixel belongs to this circle.
+         */
+        private final double epsilon;
+
+        /**
+         * Constructor.
+         *
+         * @param xCenter The 'x' component of the center of this circle.
+         * @param yCenter The 'y' component of the center of this circle.
+         * @param radius  The radius of this circle.
+         * @param epsilon An epsilon used to identify if a given pixel belongs to this circle.
+         */
+        private Circle(double xCenter, double yCenter, double radius, double epsilon) {
+            this.xCenter = xCenter;
+            this.yCenter = yCenter;
+            this.radius = radius;
+            this.epsilon = epsilon;
+            this.squaredRadius = radius * radius;
+        }
+
+        @Override
+        public boolean belongs(int x, int y) {
+            return Math.abs(squaredRadius - Math.pow(x - xCenter, 2) - Math.pow(y - yCenter, 2)) < epsilon;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Circle)) {
+                return false;
+            }
+
+            final Circle circle = (Circle) o;
+            return Double.compare(circle.xCenter, xCenter) == 0
+                    && Double.compare(circle.yCenter, yCenter) == 0
+                    && Double.compare(circle.radius, radius) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            int result;
+            long temp;
+            temp = Double.doubleToLongBits(xCenter);
+            result = (int) (temp ^ (temp >>> 32));
+            temp = Double.doubleToLongBits(yCenter);
+            result = 31 * result + (int) (temp ^ (temp >>> 32));
+            temp = Double.doubleToLongBits(radius);
             result = 31 * result + (int) (temp ^ (temp >>> 32));
             return result;
         }

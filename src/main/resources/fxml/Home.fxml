@@ -142,6 +142,8 @@
                     <Menu mnemonicParsing="false" text="Hough transform">
                         <MenuItem mnemonicParsing="false" text="Detect straight lines..."
                                   onAction="#detectStraightLines"/>
+                        <MenuItem mnemonicParsing="false" text="Detect circles..."
+                                  onAction="#detectCircles"/>
                     </Menu>
 
                 </Menu>

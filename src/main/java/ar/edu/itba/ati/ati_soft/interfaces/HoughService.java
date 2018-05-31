@@ -20,5 +20,14 @@ public interface HoughService {
      */
     Image findStraightLines(Image image, double sigma, double thetaStep, double epsilon, double maxPercentage);
 
-    Image findCircles(Image image, double sigma, double epsilon, double maxPercentage); // TODO: check params
+    /**
+     * Finds circles in the given {@code image}.
+     *
+     * @param image         The {@link Image} to be analyzed.
+     * @param sigma         A sigma value used to detect borders before.
+     * @param epsilon       An epsilon used to identify if a given pixel belongs to a circle.
+     * @param maxPercentage A max. percentage, used to threshold the count.
+     * @return The shapes {@link Image}.
+     */
+    Image findCircles(Image image, double sigma, double epsilon, double maxPercentage);
 }
