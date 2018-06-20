@@ -86,10 +86,10 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
         }
 
         // Get the undefined positions, and place them in a queue.
-        final Queue<ImagePosition> undefinedPositions = IntStream.range(0, width)
+        final Queue<ImageManipulationHelper.ImagePosition> undefinedPositions = IntStream.range(0, width)
                 .mapToObj(x -> IntStream.range(0, height)
                         .filter(y -> thresholdImage.getSample(x, y, 0) == -1d)
-                        .mapToObj(y -> new ImagePosition(x, y)))
+                        .mapToObj(y -> new ImageManipulationHelper.ImagePosition(x, y)))
                 .flatMap(Function.identity())
                 .collect(Collectors.toCollection(LinkedList::new));
 
@@ -100,16 +100,16 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
 
         // While there is an undefined position in the queue...
         while (!undefinedPositions.isEmpty()) {
-            final ImagePosition position = Optional.ofNullable(undefinedPositions.poll())
+            final ImageManipulationHelper.ImagePosition position = Optional.ofNullable(undefinedPositions.poll())
                     .orElseThrow(() -> new RuntimeException("This should not happen"));
             final int x = position.getX();
             final int y = position.getY();
-            final ImagePosition[] neighbors = buildNeighborsPositions(x, y);
+            final ImageManipulationHelper.ImagePosition[] neighbors = buildNeighborsPositions(x, y);
 
             int realNeighbors = 0; // Indicates the real amount of neighbors (excluding those out of range)
             int undefinedNeighbors = 0; // Indicates how many neighbors are also undefined
             int nonBorderNeighbors = 0;
-            for (ImagePosition neighbor : neighbors) {
+            for (ImageManipulationHelper.ImagePosition neighbor : neighbors) {
                 final int row = neighbor.getX();
                 final int column = neighbor.getY();
 
@@ -236,24 +236,25 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
     }
 
     /**
-     * Builds an array of {@link ImagePosition} containing the neighbors of the given {@code x} and {@code y}.
+     * Builds an array of {@link ImageManipulationHelper.ImagePosition}
+     * containing the neighbors of the given {@code x} and {@code y}.
      *
      * @param x The 'x' position.
      * @param y The 'y' position.
-     * @return The array of {@link ImagePosition}.
+     * @return The array of {@link ImageManipulationHelper.ImagePosition}.
      */
-    private static ImagePosition[] buildNeighborsPositions(int x, int y) {
-        return new ImagePosition[]{
-                new ImagePosition(x - 1, y - 1),
-                new ImagePosition(x, y - 1),
-                new ImagePosition(x + 1, y - 1),
+    private static ImageManipulationHelper.ImagePosition[] buildNeighborsPositions(int x, int y) {
+        return new ImageManipulationHelper.ImagePosition[]{
+                new ImageManipulationHelper.ImagePosition(x - 1, y - 1),
+                new ImageManipulationHelper.ImagePosition(x, y - 1),
+                new ImageManipulationHelper.ImagePosition(x + 1, y - 1),
 
-                new ImagePosition(x - 1, y),
-                new ImagePosition(x + 1, y),
+                new ImageManipulationHelper.ImagePosition(x - 1, y),
+                new ImageManipulationHelper.ImagePosition(x + 1, y),
 
-                new ImagePosition(x - 1, y + 1),
-                new ImagePosition(x, y + 1),
-                new ImagePosition(x + 1, y + 1),
+                new ImageManipulationHelper.ImagePosition(x - 1, y + 1),
+                new ImageManipulationHelper.ImagePosition(x, y + 1),
+                new ImageManipulationHelper.ImagePosition(x + 1, y + 1),
         };
     }
 
@@ -393,46 +394,6 @@ public class ImageThresholdServiceImpl implements ImageThresholdService {
         private static List<Double> mergeFunction(List<Double> actual, List<Double> newOne) {
             actual.addAll(newOne);
             return actual;
-        }
-    }
-
-    /**
-     * Bean class representing a position in an {@link Image}.
-     */
-    private static final class ImagePosition {
-
-        /**
-         * The position in 'x'.
-         */
-        private final int x;
-        /**
-         * The position in 'y'.
-         */
-        private final int y;
-
-        /**
-         * Constructor.
-         *
-         * @param x The position in 'x'.
-         * @param y The position in 'y'.
-         */
-        private ImagePosition(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-
-        /**
-         * @return The position in 'x'.
-         */
-        public int getX() {
-            return x;
-        }
-
-        /**
-         * @return The position in 'x'.
-         */
-        public int getY() {
-            return y;
         }
     }
 }

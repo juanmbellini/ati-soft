@@ -86,7 +86,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
     @Override
     public Image applyGaussianFilter(Image image, double standardDeviation) {
         Assert.isTrue(standardDeviation > 0, "The standard deviation must be positive");
-        final int margin = (int) (standardDeviation * 2);
+        final int margin = (int) standardDeviation;
         // First calculate values using the Gaussian function
         final double variance = standardDeviation * standardDeviation; // Avoid recalculating this
         final double factor = 1 / (2 * Math.PI * variance); // Avoid recalculating this
@@ -186,7 +186,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         final int height = image.getHeight();
         final int bands = image.getBands();
         final Image grayImage = ImageManipulationHelper.toGray(image);
-        final Image filtered = applyGaussianFilter(grayImage, sigma);
+        final Image filtered = sigma == 0 ? grayImage : applyGaussianFilter(grayImage, sigma);
         final Image gx = filterWithMask(filtered, SobelMask.TOP.getMask());
         final Image gy = filterWithMask(filtered, SobelMask.RIGHT.getMask());
         // Use the modulus instead of the 1st-norm, as is has better results
@@ -207,8 +207,8 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
                     }
                     final Direction direction = Direction.fromAngle(anglesImage.getSample(x, y, b));
 
-                    final int prevRow = x + direction.getX();
-                    final int prevColumn = y + direction.getY();
+                    final int prevRow = x - direction.getX();
+                    final int prevColumn = y - direction.getY();
                     final int nextRow = x + direction.getX();
                     final int nextColumn = y + direction.getY();
                     // Check index ranges first, and then adjacent pixels along the direction
@@ -723,7 +723,7 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
         @Override
         public Double apply(Integer x, Integer y, Integer b) {
-            return Math.atan2(gx.getSample(x, y, b), gy.getSample(x, y, b));
+            return Math.atan2(gy.getSample(x, y, b), gx.getSample(x, y, b));
         }
     }
 

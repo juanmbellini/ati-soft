@@ -87,6 +87,11 @@ public class HomeController {
      */
     private final DiffusionService diffusionService;
 
+    /**
+     * A {@link HoughService} to perform shape detection.
+     */
+    private final HoughService houghService;
+
 
     // ==============================================================================
     // UI Components
@@ -178,7 +183,8 @@ public class HomeController {
                           NoiseGenerationService noiseGenerationService,
                           SlidingWindowService slidingWindowService,
                           HistogramService histogramService,
-                          DiffusionService diffusionService) {
+                          DiffusionService diffusionService,
+                          HoughService houghService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
         this.imageThresholdService = imageThresholdService;
@@ -186,6 +192,7 @@ public class HomeController {
         this.slidingWindowService = slidingWindowService;
         this.histogramService = histogramService;
         this.diffusionService = diffusionService;
+        this.houghService = houghService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -571,6 +578,15 @@ public class HomeController {
     }
 
     @FXML
+    public void suppressNoMax() {
+        getNumber("Standard deviation for gaussian filtering for the No max suppression", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image ->
+                                slidingWindowService.suppressNoMaxPixels(image, sigma),
+                        "border detection with Canny method", imageOperationService::normalize));
+    }
+
+    @FXML
     public void cannyDetector() {
         getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
                 "Insert the standard deviation", Double::parseDouble)
@@ -578,6 +594,7 @@ public class HomeController {
                         "border detection with Canny method", Function.identity()));
     }
 
+    @FXML
     public void susanDetector() {
         getNumber("T value for the susan detection method", "",
                 "Insert the t value", Double::parseDouble)
@@ -623,6 +640,49 @@ public class HomeController {
                                 .ifPresent(sigma -> oneImageOperationAction(image -> diffusionService
                                                 .anisotropicDiffusionWithLorentz(image, t, lambda, sigma),
                                         "Lorentz anisotropic diffusion", imageOperationService::normalize))));
+    }
+
+    @FXML
+    public void detectStraightLines() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma ->
+                        getNumber("Theta step for the Hough accumulator matrix", "",
+                                "Insert the theta step", Double::parseDouble)
+                                .ifPresent(thetaStep -> getNumber("Epsilon for the Straight Line detector", "",
+                                        "Insert the epsilon", Double::parseDouble)
+                                        .ifPresent(epsilon -> getNumber("Max percentage", "",
+                                                "Insert the percentage of the max to be taken into account",
+                                                Double::parseDouble)
+                                                .ifPresent(maxPercentage -> {
+                                                    LOGGER.debug("Performing the Hough transform for straight lines...");
+                                                    final Image image = this.actual.getInternalRepresentation();
+                                                    final Image newImage = houghService
+                                                            .findStraightLines(image, sigma, thetaStep,
+                                                                    epsilon, maxPercentage);
+                                                    afterChanging(newImage, Function.identity(),
+                                                            ImageIOContainer::buildForNewColorImage);
+                                                }))));
+    }
+
+    @FXML
+    public void detectCircles() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> getNumber("Epsilon for the Straight Line detector", "",
+                        "Insert the epsilon", Double::parseDouble)
+                        .ifPresent(epsilon -> getNumber("Max percentage", "",
+                                "Insert the percentage of the max to be taken into account",
+                                Double::parseDouble)
+                                .ifPresent(maxPercentage -> {
+                                    LOGGER.debug("Performing the Hough transform for circles...");
+                                    final Image image = this.actual.getInternalRepresentation();
+                                    final Image newImage = houghService
+                                            .findCircles(image, sigma, epsilon, maxPercentage);
+                                    afterChanging(newImage, Function.identity(),
+                                            ImageIOContainer::buildForNewColorImage);
+
+                                })));
     }
 
     // ======================================
@@ -733,7 +793,7 @@ public class HomeController {
     private File selectFile() {
         final FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select image");
-        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+//        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
         final List<FileChooser.ExtensionFilter> extensionFilters = imageIOService.getSupportedFormats().entrySet()
                 .stream()
                 .map(e -> new FileChooser.ExtensionFilter(e.getValue() + " (." + e.getKey() + ")", "*." + e.getKey()))
