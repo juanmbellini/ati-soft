@@ -6,10 +6,7 @@ import ar.edu.itba.ati.ati_soft.models.Image;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -47,7 +44,7 @@ public class HoughServiceImpl implements HoughService {
     public Image findCircles(Image image, double sigma, double epsilon, double maxPercentage) {
         final Set<Shape> shapes = new HashSet<>();
         final int d = Math.max(image.getWidth(), image.getHeight());
-        for (int radius = 1; radius <= d / 2; radius += 2) {
+        for (int radius = 1; radius <= d / 2; radius += 1) {
             for (int x = radius; x <= image.getWidth() - radius; x += 1) {
                 for (int y = radius; y <= image.getHeight() - radius; y += 1) {
                     shapes.add(new Circle(x, y, radius, epsilon));
@@ -101,8 +98,19 @@ public class HoughServiceImpl implements HoughService {
                 .filter(shape -> Optional.ofNullable(shapesAccumulator.get(shape))
                         .orElseThrow(() -> new RuntimeException("This should not happen")) >= threshold)
                 .collect(Collectors.toSet());
-        return ImageManipulationHelper.createApplying(() -> Image.empty(width, height, image.getBands()),
-                (x, y, b) -> allowedShapes.stream().anyMatch(shape -> shape.belongs(x, y)) ? 255d : 0d);
+
+        return ImageManipulationHelper.createApplying(() -> Image.empty(width, height, 3),
+                (x, y) -> {
+                    if (allowedShapes.stream().anyMatch(shape -> shape.belongs(x, y))) {
+                        return new Double[]{0d, 255d, 0d};
+                    }
+                    final Double[] pixel = image.getPixel(x, y);
+                    if (image.getBands() == 3) {
+                        return pixel;
+                    }
+                    final double gray = Math.sqrt(Arrays.stream(pixel).mapToDouble(v -> v * v).sum());
+                    return new Double[]{gray, gray, gray};
+                });
     }
 
 

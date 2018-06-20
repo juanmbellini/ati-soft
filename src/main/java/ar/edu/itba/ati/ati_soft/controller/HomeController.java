@@ -654,15 +654,15 @@ public class HomeController {
                                         .ifPresent(epsilon -> getNumber("Max percentage", "",
                                                 "Insert the percentage of the max to be taken into account",
                                                 Double::parseDouble)
-                                                .ifPresent(maxPercentage ->
-                                                        oneImageOperationAction(image ->
-                                                                        houghService.findStraightLines(image,
-                                                                                sigma,
-                                                                                thetaStep,
-                                                                                epsilon,
-                                                                                maxPercentage),
-                                                                "Hough transform for straight lines",
-                                                                Function.identity())))));
+                                                .ifPresent(maxPercentage -> {
+                                                    LOGGER.debug("Performing the Hough transform for straight lines...");
+                                                    final Image image = this.actual.getInternalRepresentation();
+                                                    final Image newImage = houghService
+                                                            .findStraightLines(image, sigma, thetaStep,
+                                                                    epsilon, maxPercentage);
+                                                    afterChanging(newImage, Function.identity(),
+                                                            ImageIOContainer::buildForNewColorImage);
+                                                }))));
     }
 
     @FXML
@@ -674,14 +674,15 @@ public class HomeController {
                         .ifPresent(epsilon -> getNumber("Max percentage", "",
                                 "Insert the percentage of the max to be taken into account",
                                 Double::parseDouble)
-                                .ifPresent(maxPercentage ->
-                                        oneImageOperationAction(image ->
-                                                        houghService.findCircles(image,
-                                                                sigma,
-                                                                epsilon,
-                                                                maxPercentage),
-                                                "Hough transform for circles",
-                                                Function.identity()))));
+                                .ifPresent(maxPercentage -> {
+                                    LOGGER.debug("Performing the Hough transform for circles...");
+                                    final Image image = this.actual.getInternalRepresentation();
+                                    final Image newImage = houghService
+                                            .findCircles(image, sigma, epsilon, maxPercentage);
+                                    afterChanging(newImage, Function.identity(),
+                                            ImageIOContainer::buildForNewColorImage);
+
+                                })));
     }
 
     // ======================================
