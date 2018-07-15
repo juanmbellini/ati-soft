@@ -87,6 +87,11 @@ public class HomeController {
      */
     private final DiffusionService diffusionService;
 
+    /**
+     * A {@link HoughService} to perform shape detection.
+     */
+    private final HoughService houghService;
+
 
     // ==============================================================================
     // UI Components
@@ -136,13 +141,6 @@ public class HomeController {
     private File openedImageFile;
 
     /**
-     * An {@link ImageIOContainer} that holds the opened {@link Image}.
-     * This is used to build a new {@link BufferedImage} each time the actual {@link Image} is changed
-     * (i.e just the metadata is used).
-     */
-    private ImageIOContainer initialImageIOContainer;
-
-    /**
      * The initially displayed {@link BufferedImage},
      * used for quickly display of the original image with the {@link #showOriginal()} method.
      */
@@ -156,22 +154,22 @@ public class HomeController {
     /**
      * The actual image being displayed.
      */
-    private ImagePair actual;
+    private ImageMapping actual;
 
     /**
      * The last saved {@link Image}.
      */
-    private ImagePair lastSaved;
+    private ImageMapping lastSaved;
 
     /**
      * A {@link Stack} holding {@link Image}s obtained.
      */
-    private final Stack<ImagePair> imageHistory;
+    private final Stack<ImageMapping> imageHistory;
 
     /**
      * {@link Stack} holding each undone image (i.e those that were undone).
      */
-    private final Stack<ImagePair> undoneImages;
+    private final Stack<ImageMapping> undoneImages;
 
 
     // ==============================================================================
@@ -185,7 +183,8 @@ public class HomeController {
                           NoiseGenerationService noiseGenerationService,
                           SlidingWindowService slidingWindowService,
                           HistogramService histogramService,
-                          DiffusionService diffusionService) {
+                          DiffusionService diffusionService,
+                          HoughService houghService) {
         this.imageIOService = imageIOService;
         this.imageOperationService = imageOperationService;
         this.imageThresholdService = imageThresholdService;
@@ -193,6 +192,7 @@ public class HomeController {
         this.slidingWindowService = slidingWindowService;
         this.histogramService = histogramService;
         this.diffusionService = diffusionService;
+        this.houghService = houghService;
         this.imageHistory = new Stack<>();
         this.undoneImages = new Stack<>();
     }
@@ -274,7 +274,7 @@ public class HomeController {
                     final FileChooser fileChooser = new FileChooser();
                     fileChooser.setTitle("Save...");
                     fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
-                    final int bands = actual.original.getBands();
+                    final int bands = actual.getInternalRepresentation().getBands();
                     final String name = bands == 1 ? ".pgm" : bands == 3 ? ".ppm" : "";
                     fileChooser.setInitialFileName(name);
                     return fileChooser.showSaveDialog(root.getScene().getWindow());
@@ -283,7 +283,7 @@ public class HomeController {
         if (file == null) {
             return;
         }
-        if (actual.getDisplayed() == lastSaved.getDisplayed()) {
+        if (actual.getImageIORepresentation() == lastSaved.getImageIORepresentation()) {
             LOGGER.warn("No changes has been made to image.");
         }
         saveImage(file);
@@ -387,6 +387,12 @@ public class HomeController {
     }
 
     @FXML
+    public void hysteresisThreshold() {
+        oneImageOperationAction(imageThresholdService::hysteresisThreshold,
+                "Hysteresis threshold", Function.identity());
+    }
+
+    @FXML
     public void equalize() {
         oneImageOperationAction(histogramService::equalize, "image equalization",
                 imageOperationService::normalize);
@@ -485,7 +491,7 @@ public class HomeController {
 
     @FXML
     public void gaussianFilter() {
-        getNumber("Standard deviation for Median Filter", "",
+        getNumber("Standard deviation for Gaussian Filter", "",
                 "Insert the standard deviation", Double::parseDouble)
                 .ifPresent(standardDeviation -> oneImageOperationAction(image ->
                                 slidingWindowService.applyGaussianFilter(image, standardDeviation),
@@ -572,6 +578,34 @@ public class HomeController {
     }
 
     @FXML
+    public void suppressNoMax() {
+        getNumber("Standard deviation for gaussian filtering for the No max suppression", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image ->
+                                slidingWindowService.suppressNoMaxPixels(image, sigma),
+                        "border detection with Canny method", imageOperationService::normalize));
+    }
+
+    @FXML
+    public void cannyDetector() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> oneImageOperationAction(image -> slidingWindowService.cannyDetection(image, sigma),
+                        "border detection with Canny method", Function.identity()));
+    }
+
+    @FXML
+    public void susanDetector() {
+        getNumber("T value for the susan detection method", "",
+                "Insert the t value", Double::parseDouble)
+                .ifPresent(t -> {
+                    LOGGER.debug("Performing the border detection with SUSAN method...");
+                    final Image newImage = slidingWindowService.susanDetection(this.actual.getInternalRepresentation(), t);
+                    afterChanging(newImage, Function.identity(), ImageIOContainer::buildForNewColorImage);
+                });
+    }
+
+    @FXML
     public void isotropicDiffusion() {
         getNumber("Amount of iterations for Isotropic Diffusion", "",
                 "Insert the amount of iterations", Integer::parseInt)
@@ -608,6 +642,49 @@ public class HomeController {
                                         "Lorentz anisotropic diffusion", imageOperationService::normalize))));
     }
 
+    @FXML
+    public void detectStraightLines() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma ->
+                        getNumber("Theta step for the Hough accumulator matrix", "",
+                                "Insert the theta step", Double::parseDouble)
+                                .ifPresent(thetaStep -> getNumber("Epsilon for the Straight Line detector", "",
+                                        "Insert the epsilon", Double::parseDouble)
+                                        .ifPresent(epsilon -> getNumber("Max percentage", "",
+                                                "Insert the percentage of the max to be taken into account",
+                                                Double::parseDouble)
+                                                .ifPresent(maxPercentage -> {
+                                                    LOGGER.debug("Performing the Hough transform for straight lines...");
+                                                    final Image image = this.actual.getInternalRepresentation();
+                                                    final Image newImage = houghService
+                                                            .findStraightLines(image, sigma, thetaStep,
+                                                                    epsilon, maxPercentage);
+                                                    afterChanging(newImage, Function.identity(),
+                                                            ImageIOContainer::buildForNewColorImage);
+                                                }))));
+    }
+
+    @FXML
+    public void detectCircles() {
+        getNumber("Standard deviation for gaussian filtering for the Canny Border detection method", "",
+                "Insert the standard deviation", Double::parseDouble)
+                .ifPresent(sigma -> getNumber("Epsilon for the Straight Line detector", "",
+                        "Insert the epsilon", Double::parseDouble)
+                        .ifPresent(epsilon -> getNumber("Max percentage", "",
+                                "Insert the percentage of the max to be taken into account",
+                                Double::parseDouble)
+                                .ifPresent(maxPercentage -> {
+                                    LOGGER.debug("Performing the Hough transform for circles...");
+                                    final Image image = this.actual.getInternalRepresentation();
+                                    final Image newImage = houghService
+                                            .findCircles(image, sigma, epsilon, maxPercentage);
+                                    afterChanging(newImage, Function.identity(),
+                                            ImageIOContainer::buildForNewColorImage);
+
+                                })));
+    }
+
     // ======================================
     // View actions
     // ======================================
@@ -631,13 +708,13 @@ public class HomeController {
 
     @FXML
     public void showHistograms() {
-        histogramService.getHistograms(imageOperationService.normalize(this.actual.getOriginal()))
+        histogramService.getHistograms(imageOperationService.normalize(this.actual.getInternalRepresentation()))
                 .forEach((b, h) -> showHistogram(h, "Histogram for band " + b));
     }
 
     @FXML
     public void showCumulativeDistributionHistograms() {
-        histogramService.getHistograms(imageOperationService.normalize(this.actual.getOriginal()))
+        histogramService.getHistograms(imageOperationService.normalize(this.actual.getInternalRepresentation()))
                 .forEach((b, h) ->
                         showHistogram(histogramService.getCumulativeDistributionHistogram(h),
                                 "Cumulative Distribution Histogram for band " + b));
@@ -672,8 +749,8 @@ public class HomeController {
      */
     private void setUp(BufferedImage image, File file) {
         this.initialDisplayed = image;
-        this.initialImageIOContainer = imageIOService.fromImageIO(image);
-        this.actual = new ImagePair(this.initialImageIOContainer.getImage(), image);
+        final ImageIOContainer initialImageIOContainer = imageIOService.fromImageIO(image);
+        this.actual = new ImageMapping(initialImageIOContainer, image);
         this.lastSaved = this.actual;
         this.openedImageFile = file;
         this.imageHistory.clear();
@@ -699,7 +776,7 @@ public class HomeController {
      */
     private void saveImage(File file) {
         try {
-            imageIOService.saveImage(this.actual.getDisplayed(), file);
+            imageIOService.saveImage(this.actual.getImageIORepresentation(), file);
         } catch (UnsupportedImageFileException e) {
             LOGGER.debug("Something wrong had happened.");
         } catch (IOException e) {
@@ -716,7 +793,7 @@ public class HomeController {
     private File selectFile() {
         final FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select image");
-        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+//        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
         final List<FileChooser.ExtensionFilter> extensionFilters = imageIOService.getSupportedFormats().entrySet()
                 .stream()
                 .map(e -> new FileChooser.ExtensionFilter(e.getValue() + " (." + e.getKey() + ")", "*." + e.getKey()))
@@ -822,7 +899,7 @@ public class HomeController {
     private void oneImageOperationAction(Function<Image, Image> imageOperation, String operationName,
                                          Function<Image, Image> displayOperation) {
         LOGGER.debug("Performing the {}...", operationName);
-        final Image newImage = imageOperation.apply(this.actual.getOriginal());
+        final Image newImage = imageOperation.apply(this.actual.getInternalRepresentation());
         afterChanging(newImage, displayOperation);
     }
 
@@ -854,7 +931,7 @@ public class HomeController {
                 })
                 .map(imageIOService::fromImageIO)
                 .map(ImageIOContainer::getImage)
-                .map(anotherImage -> imageOperation.apply(this.actual.getOriginal(), anotherImage))
+                .map(anotherImage -> imageOperation.apply(this.actual.getInternalRepresentation(), anotherImage))
                 .ifPresent(newImage -> {
                     LOGGER.debug("Performing {}...", operationName);
                     afterChanging(newImage, displayOperation);
@@ -867,22 +944,39 @@ public class HomeController {
      * @param newImage         The new {@link Image}.
      * @param displayOperation A {@link Function} that takes the new {@link Image}
      *                         and performs the operation that must be done to be displayed.
-     *                         (e.g normalization, dynamic range compression, etc.)
+     *                         (e.g normalization, dynamic range compression, etc.).
+     * @implNote This method calls the {@link #afterChanging(Image, Function, Function)} method,
+     * but delegating the task of building a new {@link ImageIOContainer} to the actual one.
      */
     private void afterChanging(Image newImage, Function<Image, Image> displayOperation) {
-        modify(new ImagePair(newImage, displayOperation,
-                image -> imageIOService.toImageIO(this.initialImageIOContainer.buildForNewImage(image))));
+        afterChanging(newImage, displayOperation, this.actual.getImageIOContainer()::buildForNewImage);
+    }
+
+    /**
+     * Performs the last steps that must be done after changing the actual image.
+     *
+     * @param newImage          The new {@link Image}.
+     * @param displayOperation  A {@link Function} that takes the new {@link Image}
+     *                          and performs the operation that must be done to be displayed.
+     *                          (e.g normalization, dynamic range compression, etc.)
+     * @param toImageIOFunction A {@link Function} that takes an {@link Image}
+     *                          and transforms it into an {@link ImageIOContainer} for it.
+     */
+    private void afterChanging(Image newImage,
+                               Function<Image, Image> displayOperation,
+                               Function<Image, ImageIOContainer> toImageIOFunction) {
+        modify(new ImageMapping(newImage, displayOperation, toImageIOFunction, imageIOService::toImageIO));
         drawActual();
     }
 
     /**
-     * Modifies the actual image, setting the given {@link ImagePair} as the actual,
+     * Modifies the actual image, setting the given {@link ImageMapping} as the actual,
      * saving the ex-actual in the {@link #imageHistory} {@link Stack},
      * and clearing the {@link #undoneImages} {@link Stack}.
      *
      * @param newPair The new actual image (i.e the original-display pair).
      */
-    private void modify(ImagePair newPair) {
+    private void modify(ImageMapping newPair) {
         this.imageHistory.push(this.actual);
         this.undoneImages.clear();
         this.actual = newPair;
@@ -892,7 +986,7 @@ public class HomeController {
      * Draws the actual image in the {@link #imageView} {@link ImageView}.
      */
     private void drawActual() {
-        drawImage(this.actual.getDisplayed(), this.imageView);
+        drawImage(this.actual.getImageIORepresentation(), this.imageView);
     }
 
     /**
@@ -967,19 +1061,20 @@ public class HomeController {
     // ==============================================================================
 
     /**
-     * Bean class that holds together an {@link Image} with its {@link BufferedImage} representation.
+     * Bean class that holds together an {@link Image} with its {@link BufferedImage} representation,
+     * and an {@link ImageIOContainer} also, which is used to perform the mapping.
      */
-    private static final class ImagePair {
+    private static final class ImageMapping {
 
         /**
-         * The original {@link Image} (i.e the model).
-         */
-        private final Image original;
-
-        /**
-         * The {@link BufferedImage} (i.e the displayed representation of the {@link #original} {@link Image}).
+         * The {@link BufferedImage} that will be displayed.
          */
         private final BufferedImage displayed;
+
+        /**
+         * The {@link ImageIOContainer} that was used to perform the {@link Image} - {@link BufferedImage} mapping.
+         */
+        private final ImageIOContainer imageIOContainer;
 
         /**
          * Constructor that builds the displayed {@link BufferedImage}.
@@ -987,39 +1082,56 @@ public class HomeController {
          * @param original                The original {@link Image} (i.e the model).
          * @param displayOperation        A {@link Function} that takes the {@code original}
          *                                and transform it into another {@link Image} that can be displayed.
-         * @param toBufferedImageFunction A {@link Function} that takes an {@link Image}
-         *                                and transforms it into the {@link BufferedImage} representation of it.
+         * @param toImageIOContainer      A {@link Function} that takes an {@link Image}
+         *                                and produces an {@link ImageIOContainer} for it.
+         * @param toBufferedImageFunction A {@link Function} that takes an {@link ImageIOContainer}
+         *                                and transforms it into the {@link BufferedImage}.
+         * @apiNote This constructor can be used when, having an internal {@link Image},
+         * one wants to hold the mapping for it into an ImageIO {@link BufferedImage}.
          */
-        private ImagePair(Image original, Function<Image, Image> displayOperation,
-                          Function<Image, BufferedImage> toBufferedImageFunction) {
-            this.original = original;
-            this.displayed = displayOperation.andThen(toBufferedImageFunction).apply(this.original);
+        private ImageMapping(Image original, Function<Image, Image> displayOperation,
+                             Function<Image, ImageIOContainer> toImageIOContainer,
+                             Function<ImageIOContainer, BufferedImage> toBufferedImageFunction) {
+            this.imageIOContainer = toImageIOContainer.apply(displayOperation.apply(original));
+            this.displayed = toBufferedImageFunction.apply(this.imageIOContainer);
         }
 
         /**
          * Constructor that sets values.
          *
-         * @param original  The original {@link Image} (i.e the model).
-         * @param displayed The {@link BufferedImage}
-         *                  (i.e the displayed representation of the {@code original}) {@link Image}.
+         * @param imageIOContainer The {@link ImageIOContainer}
+         *                         that was used to perform the {@link Image} - {@link BufferedImage} mapping.
+         * @param displayed        The {@link BufferedImage}
+         *                         (i.e the displayed representation of the {@code original}) {@link Image}.
+         * @apiNote This constructor can be used when, having the {@link BufferedImage},
+         * one wants to hold the mapping for it into an internal {@link Image}.
          */
-        private ImagePair(Image original, BufferedImage displayed) {
-            this.original = original;
+        private ImageMapping(ImageIOContainer imageIOContainer, BufferedImage displayed) {
+            this.imageIOContainer = imageIOContainer;
             this.displayed = displayed;
         }
 
         /**
          * @return The original {@link Image} (i.e the model).
          */
-        private Image getOriginal() {
-            return original;
+        private Image getInternalRepresentation() {
+            return imageIOContainer.getImage();
+        }
+
+
+        /**
+         * @return The {@link ImageIOContainer}
+         * that was used to perform the {@link Image} - {@link BufferedImage} mapping.
+         */
+        private ImageIOContainer getImageIOContainer() {
+            return imageIOContainer;
         }
 
         /**
          * @return The {@link BufferedImage}
-         * (i.e the displayed representation of the {@link #getOriginal()} {@link Image}).
+         * (i.e the displayed representation of the {@link #getInternalRepresentation()} {@link Image}).
          */
-        private BufferedImage getDisplayed() {
+        private BufferedImage getImageIORepresentation() {
             return displayed;
         }
     }
