@@ -109,6 +109,53 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         return filterWithMask(image, mask);
     }
 
+    @Override
+    public Image applyBilateralFilter(Image image, double spatialStd, double rangeStd, int windowSize) {
+        Assert.isTrue(spatialStd > 0 && rangeStd > 0, "Both standard deviations must be positive");
+        final int margin = windowSize / 2;
+        final double spatialFactor = 2 * spatialStd * spatialStd;
+        final Double[][] spatialGauss = IntStream.range(-margin, margin + 1)
+                .mapToObj(x -> IntStream.range(-margin, margin + 1)
+                        .mapToObj(y -> Math.exp(-(x * x + y * y) / spatialFactor))
+                        .toArray(Double[]::new))
+                .toArray(Double[][]::new);
+        final double rangeFactor = 2 * rangeStd * rangeStd;
+        // The bilateral filtering is composed of a spatial domain filter (which only depends on the distance of pixels)
+        // and a range filter (which depends on the intensity value of the image in a given region)
+        // That's why we must use the applyFilter method, which receives a function that depends on a portion
+        // of an image (the so called window). This method allows to operate with the window,
+        // defining the mask based on it.
+        return applyFilter(image, windowSize,
+                window -> {
+                    // First get the center of the window, which will be used for range filtering
+                    final double center = window[margin][margin];
+                    // Then calculate the unfinished mask, which lacks the division of the sum
+                    final Double[][] partiallyFiltered = IntStream.range(0, window.length)
+                            .mapToObj(x -> IntStream.range(0, window[x].length)
+                                    .mapToObj(y -> {
+                                        final double windowValue = window[x][y];
+                                        final double difference = windowValue - center;
+                                        final double distance = difference * difference;
+                                        final double exponential = Math.exp(-distance / rangeFactor);
+                                        return exponential * spatialGauss[x][y]; // Combination of both filters
+                                    })
+                                    .toArray(Double[]::new)
+                            ).toArray(Double[][]::new);
+                    // Calculate the sum of the mask
+                    final double sum = Arrays.stream(partiallyFiltered)
+                            .flatMap(Arrays::stream)
+                            .reduce(0.0, (o1, o2) -> o1 + o2);
+                    // Then, apply the filtering with the mask by multiplying each element of the window
+                    // with its corresponding element in the mask, and them summing all the resultant elements
+                    // The result is then divided by the sum (acts as a normalization)
+                    return IntStream.range(0, window.length)
+                            .mapToObj(x -> IntStream.range(0, window[x].length)
+                                    .mapToObj(y -> partiallyFiltered[x][y] * window[x][y]))
+                            .flatMap(Function.identity())
+                            .reduce(0.0, (o1, o2) -> o1 + o2) / sum;
+                });
+    }
+
     // ================================================================================================================
     // Border detection
     // ================================================================================================================
@@ -626,7 +673,8 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
         MaskHelper.validateMask(mask);
         return applyFilter(image, mask.length,
                 array -> IntStream.range(0, array.length)
-                        .mapToObj(x -> IntStream.range(0, array[x].length).mapToObj(y -> array[x][y] * mask[x][y]))
+                        .mapToObj(x -> IntStream.range(0, array[x].length)
+                                .mapToObj(y -> array[x][y] * mask[x][y]))
                         .flatMap(Function.identity())
                         .reduce(0.0, (o1, o2) -> o1 + o2));
     }
