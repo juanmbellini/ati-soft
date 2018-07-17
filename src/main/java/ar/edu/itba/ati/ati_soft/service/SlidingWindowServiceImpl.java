@@ -111,50 +111,21 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
 
     @Override
     public Image applyBilateralFilter(Image image, double spatialStd, double rangeStd, int windowSize) {
-        Assert.isTrue(spatialStd > 0 && rangeStd > 0, "Both standard deviations must be positive");
-        final int margin = windowSize / 2;
-        final double spatialFactor = 2 * spatialStd * spatialStd;
-        final Double[][] spatialGauss = IntStream.range(-margin, margin + 1)
-                .mapToObj(x -> IntStream.range(-margin, margin + 1)
-                        .mapToObj(y -> Math.exp(-(x * x + y * y) / spatialFactor))
-                        .toArray(Double[]::new))
-                .toArray(Double[][]::new);
-        final double rangeFactor = 2 * rangeStd * rangeStd;
-        // The bilateral filtering is composed of a spatial domain filter (which only depends on the distance of pixels)
-        // and a range filter (which depends on the intensity value of the image in a given region)
-        // That's why we must use the applyFilter method, which receives a function that depends on a portion
-        // of an image (the so called window). This method allows to operate with the window,
-        // defining the mask based on it.
-        return applyFilter(image, windowSize,
-                window -> {
-                    // First get the center of the window, which will be used for range filtering
-                    final double center = window[margin][margin];
-                    // Then calculate the unfinished mask, which lacks the division of the sum
-                    final Double[][] partiallyFiltered = IntStream.range(0, window.length)
-                            .mapToObj(x -> IntStream.range(0, window[x].length)
-                                    .mapToObj(y -> {
-                                        final double windowValue = window[x][y];
-                                        final double difference = windowValue - center;
-                                        final double distance = difference * difference;
-                                        final double exponential = Math.exp(-distance / rangeFactor);
-                                        return exponential * spatialGauss[x][y]; // Combination of both filters
-                                    })
-                                    .toArray(Double[]::new)
-                            ).toArray(Double[][]::new);
-                    // Calculate the sum of the mask
-                    final double sum = Arrays.stream(partiallyFiltered)
-                            .flatMap(Arrays::stream)
-                            .reduce(0.0, (o1, o2) -> o1 + o2);
-                    // Then, apply the filtering with the mask by multiplying each element of the window
-                    // with its corresponding element in the mask, and them summing all the resultant elements
-                    // The result is then divided by the sum (acts as a normalization)
-                    return IntStream.range(0, window.length)
-                            .mapToObj(x -> IntStream.range(0, window[x].length)
-                                    .mapToObj(y -> partiallyFiltered[x][y] * window[x][y]))
-                            .flatMap(Function.identity())
-                            .reduce(0.0, (o1, o2) -> o1 + o2) / sum;
-                });
+        return doApplyBilateralFilter(image, spatialStd, rangeStd, windowSize);
     }
+
+    @Override
+    public Image applyBilateralFilterWithCIELabColor(Image image, double spatialStd, double rangeStd, int windowSize) {
+        Assert.isTrue(image.getBands() == 1 || image.getBands() == 3,
+                "Only one band or three bands images (For three bands images, the image must be RGB)");
+        // If the image is gray (i.e has only one band), then apply the filter as is)
+        // Else, an RGB -> XYZ -> CIE-Lab -> Bilateral Filter -> XYZ -> RGB transformation must be done
+        if (image.getBands() == 1) {
+            return applyBilateralFilterForGrayImage(image, spatialStd, rangeStd, windowSize);
+        }
+        return applyBilateralFilterForColorImage(image, spatialStd, rangeStd, windowSize);
+    }
+
 
     // ================================================================================================================
     // Border detection
@@ -489,6 +460,97 @@ public class SlidingWindowServiceImpl implements SlidingWindowService {
     // ================================================================================================================
     // Helper methods
     // ================================================================================================================
+
+    /**
+     * Performs bilateral filtering for gray images.
+     *
+     * @param image      The {@link Image} to which the filter will be applied.
+     * @param spatialStd The Gaussian standard deviation for the spatial domain filtering.
+     * @param rangeStd   The Gaussian standard deviation for the range filtering.
+     * @param windowSize The size of the window to be used.
+     * @return a new {@link Image} with the filter applied.
+     */
+    private static Image applyBilateralFilterForGrayImage(Image image,
+                                                          double spatialStd, double rangeStd, int windowSize) {
+        Assert.isTrue(image.getBands() == 1, "Only gray images");
+        return doApplyBilateralFilter(image, spatialStd, rangeStd, windowSize);
+    }
+
+    /**
+     * Performs bilateral filtering for color images, applying an RGB to CIE-Lab transformation before filtering,
+     * and reconverting to RGB after the process.
+     *
+     * @param image      The {@link Image} to which the filter will be applied.
+     * @param spatialStd The Gaussian standard deviation for the spatial domain filtering.
+     * @param rangeStd   The Gaussian standard deviation for the range filtering.
+     * @param windowSize The size of the window to be used.
+     * @return a new {@link Image} with the filter applied.
+     */
+    private static Image applyBilateralFilterForColorImage(Image image,
+                                                           double spatialStd, double rangeStd, int windowSize) {
+        Assert.isTrue(image.getBands() == 3, "Only three bands images (in RGB color space)");
+        final Image cieLabImage = ColorHelper.rgbToCieLab(ImageManipulationHelper.normalize(image));
+        final Image filteredCieLab = doApplyBilateralFilter(cieLabImage, spatialStd, rangeStd, windowSize);
+        return ColorHelper.cieLabToRGB(filteredCieLab);
+    }
+
+
+    /**
+     * Performs the bilateral filtering of the given {@code image}.
+     *
+     * @param image      The {@link Image} to which the filter will be applied.
+     * @param spatialStd The Gaussian standard deviation for the spatial domain filtering.
+     * @param rangeStd   The Gaussian standard deviation for the range filtering.
+     * @param windowSize The size of the window to be used.
+     * @return a new {@link Image} with the filter applied.
+     * @apiNote This method assumes that the images are 1-band or 3-band images (being CIE-Lab in this case).
+     */
+    private static Image doApplyBilateralFilter(Image image, double spatialStd, double rangeStd, int windowSize) {
+        Assert.isTrue(spatialStd > 0 && rangeStd > 0, "Both standard deviations must be positive");
+        final int margin = windowSize / 2;
+        final double spatialFactor = 2 * spatialStd * spatialStd;
+        final Double[][] spatialGauss = IntStream.range(-margin, margin + 1)
+                .mapToObj(x -> IntStream.range(-margin, margin + 1)
+                        .mapToObj(y -> Math.exp(-(x * x + y * y) / spatialFactor))
+                        .toArray(Double[]::new))
+                .toArray(Double[][]::new);
+        final double rangeFactor = 2 * rangeStd * rangeStd;
+        // The bilateral filtering is composed of a spatial domain filter (which only depends on the distance of pixels)
+        // and a range filter (which depends on the intensity value of the image in a given region)
+        // That's why we must use the applyFilter method, which receives a function that depends on a portion
+        // of an image (the so called window). This method allows to operate with the window,
+        // defining the mask based on it.
+        return applyFilter(image, windowSize,
+                window -> {
+                    // First get the center of the window, which will be used for range filtering
+                    final double center = window[margin][margin];
+                    // Then calculate the unfinished mask, which lacks the division of the sum
+                    final Double[][] partiallyFiltered = IntStream.range(0, window.length)
+                            .mapToObj(x -> IntStream.range(0, window[x].length)
+                                    .mapToObj(y -> {
+                                        final double windowValue = window[x][y];
+                                        final double difference = windowValue - center;
+                                        final double distance = difference * difference;
+                                        final double exponential = Math.exp(-distance / rangeFactor);
+                                        return exponential * spatialGauss[x][y]; // Combination of both filters
+                                    })
+                                    .toArray(Double[]::new)
+                            ).toArray(Double[][]::new);
+                    // Calculate the sum of the mask
+                    final double sum = Arrays.stream(partiallyFiltered)
+                            .flatMap(Arrays::stream)
+                            .reduce(0.0, (o1, o2) -> o1 + o2);
+                    // Then, apply the filtering with the mask by multiplying each element of the window
+                    // with its corresponding element in the mask, and them summing all the resultant elements
+                    // The result is then divided by the sum (acts as a normalization)
+                    return IntStream.range(0, window.length)
+                            .mapToObj(x -> IntStream.range(0, window[x].length)
+                                    .mapToObj(y -> partiallyFiltered[x][y] * window[x][y]))
+                            .flatMap(Function.identity())
+                            .reduce(0.0, (o1, o2) -> o1 + o2) / sum;
+                });
+    }
+
 
     /**
      * Performs a multi-mask filtering, according to the given

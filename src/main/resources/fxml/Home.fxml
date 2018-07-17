@@ -93,6 +93,9 @@
                               onAction="#gaussianFilter"/>
                     <MenuItem mnemonicParsing="false" text="Apply bilateral filter..."
                               onAction="#bilateralFilter"/>
+                    <MenuItem mnemonicParsing="false"
+                              text="Apply bilateral filter with RGB to CIE-Lab transformation for color images..."
+                              onAction="#bilateralFilterCIELab"/>
                     <SeparatorMenuItem/>
                     <MenuItem mnemonicParsing="false" text="Apply Isotropic Diffusion" onAction="#isotropicDiffusion"/>
                     <MenuItem mnemonicParsing="false" text="Apply Leclerc Anisotropic Diffusion"

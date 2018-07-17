@@ -511,6 +511,22 @@ public class HomeController {
                                         "Bilateral Filtering", imageOperationService::normalize))));
     }
 
+
+    @FXML
+    public void bilateralFilterCIELab() {
+        getNumber("Standard deviation for Gaussian function in the spatial domain", "",
+                "Insert the standard deviation for the spatial domain", Double::parseDouble)
+                .ifPresent(spatialStd -> getNumber("Standard deviation for Gaussian function in the range domain",
+                        "", "Insert the standard deviation for the range domain", Double::parseDouble)
+                        .ifPresent(rangeStd -> getNumber("Window length", "",
+                                "Insert the window length", Integer::parseInt)
+                                .ifPresent(windowLength -> oneImageOperationAction(image -> slidingWindowService
+                                                .applyBilateralFilterWithCIELabColor(image,
+                                                        spatialStd, rangeStd, windowLength),
+                                        "Bilateral Filtering", imageOperationService::normalize))));
+    }
+
+
     @FXML
     public void highPassFilter() {
         getNumber("Window length for High-Pass Filter", "",
