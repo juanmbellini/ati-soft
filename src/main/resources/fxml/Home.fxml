@@ -155,6 +155,7 @@
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
+                <MenuItem mnemonicParsing="false" text="Show actual" onAction="#showActual"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Show histograms" onAction="#showHistograms"/>
                 <MenuItem mnemonicParsing="false" text="Show cumulative distribution histograms"

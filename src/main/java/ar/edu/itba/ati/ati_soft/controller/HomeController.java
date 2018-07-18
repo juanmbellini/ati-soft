@@ -720,19 +720,12 @@ public class HomeController {
 
     @FXML
     public void showOriginal() {
-        final ImageView originalImageView = new ImageView();
-        drawImage(initialDisplayed, originalImageView);
-        originalImageView.preserveRatioProperty().setValue(true);
-        final double width = 700;
-        originalImageView.setFitWidth(width);
-        final double height = originalImageView.getLayoutBounds().getHeight();
-        final BorderPane borderPane = new BorderPane(originalImageView);
-        final Scene scene = new Scene(borderPane, width, height);
-        final Stage stage = new Stage();
-        stage.setScene(scene);
-        originalImageView.fitWidthProperty().bind(stage.widthProperty());
-        originalImageView.fitHeightProperty().bind(stage.heightProperty());
-        stage.show();
+        showBig(initialDisplayed);
+    }
+
+    @FXML
+    public void showActual() {
+        showBig(actual.getImageIORepresentation());
     }
 
     @FXML
@@ -753,6 +746,29 @@ public class HomeController {
     // ==============================================================================
     // Helper methods
     // ==============================================================================
+
+
+    /**
+     * Shows the given {@link BufferedImage} in another window in a bigger pane.
+     *
+     * @param image The {@link BufferedImage} to be displayed.
+     */
+    private void showBig(BufferedImage image) {
+        final ImageView bigImageView = new ImageView();
+        drawImage(image, bigImageView);
+        bigImageView.preserveRatioProperty().setValue(true);
+        final double width = 700;
+        bigImageView.setFitWidth(width);
+        final double height = bigImageView.getLayoutBounds().getHeight();
+        final BorderPane borderPane = new BorderPane(bigImageView);
+        final Scene scene = new Scene(borderPane, width, height);
+        final Stage stage = new Stage();
+        stage.setScene(scene);
+        bigImageView.fitWidthProperty().bind(stage.widthProperty());
+        bigImageView.fitHeightProperty().bind(stage.heightProperty());
+        stage.show();
+    }
+
 
     /**
      * Opens the given {@code imageFile}, performing the necessary steps to initialize everything.
