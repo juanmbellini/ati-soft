@@ -91,6 +91,11 @@
                               onAction="#weightedMedianFilter"/>
                     <MenuItem mnemonicParsing="false" text="Apply gaussian filter..."
                               onAction="#gaussianFilter"/>
+                    <MenuItem mnemonicParsing="false" text="Apply bilateral filter..."
+                              onAction="#bilateralFilter"/>
+                    <MenuItem mnemonicParsing="false"
+                              text="Apply bilateral filter with RGB to CIE-Lab transformation for color images..."
+                              onAction="#bilateralFilterCIELab"/>
                     <SeparatorMenuItem/>
                     <MenuItem mnemonicParsing="false" text="Apply Isotropic Diffusion" onAction="#isotropicDiffusion"/>
                     <MenuItem mnemonicParsing="false" text="Apply Leclerc Anisotropic Diffusion"
@@ -150,6 +155,7 @@
             </Menu>
             <Menu mnemonicParsing="false" text="View">
                 <MenuItem mnemonicParsing="false" text="Show original" onAction="#showOriginal"/>
+                <MenuItem mnemonicParsing="false" text="Show actual" onAction="#showActual"/>
                 <SeparatorMenuItem/>
                 <MenuItem mnemonicParsing="false" text="Show histograms" onAction="#showHistograms"/>
                 <MenuItem mnemonicParsing="false" text="Show cumulative distribution histograms"

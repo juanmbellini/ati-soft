@@ -50,6 +50,38 @@ public interface SlidingWindowService {
     Image applyGaussianFilter(Image image, double standardDeviation);
 
 
+    /**
+     * Applies a Bilateral filtering to the given {@link Image}, using the given standard deviations.
+     *
+     * @param image      The {@link Image} to which the filter will be applied.
+     * @param spatialStd The Gaussian standard deviation for the spatial domain filtering.
+     * @param rangeStd   The Gaussian standard deviation for the range filtering.
+     * @param windowSize The size of the window to be used.
+     * @return a new {@link Image} with the filter applied.
+     * @apiNote This filtering is done using the Gaussian function both for spatial domain and range filtering
+     * (for more information,
+     * see Tomasi C. , Manduchi R., (1998), Bilateral Filtering for Gray and Color Images, section 2.1).
+     */
+    Image applyBilateralFilter(Image image, double spatialStd, double rangeStd, int windowSize);
+
+    /**
+     * Applies a Bilateral filtering to the given {@link Image}, using the given standard deviations.
+     *
+     * @param image      The {@link Image} to which the filter will be applied.
+     * @param spatialStd The Gaussian standard deviation for the spatial domain filtering.
+     * @param rangeStd   The Gaussian standard deviation for the range filtering.
+     * @param windowSize The size of the window to be used.
+     * @return a new {@link Image} with the filter applied.
+     * @apiNote This filtering is done using the Gaussian function both for spatial domain and range filtering
+     * (for more information,
+     * see Tomasi C. , Manduchi R., (1998), Bilateral Filtering for Gray and Color Images, section 2.1).
+     * Only 1-band (gray) and 3-bands (just RGB) images are allowed.
+     * For RGB images, an RGB to CIE-Lab transformation is performed before filtering,
+     * and a CIE-Lab to RGB transformation after filtering.
+     */
+    Image applyBilateralFilterWithCIELabColor(Image image, double spatialStd, double rangeStd, int windowSize);
+
+
     // ================================================================================================================
     // Border detection
     // ================================================================================================================
